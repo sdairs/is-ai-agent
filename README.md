@@ -22,6 +22,8 @@ if is_ai_agent() {
 
 if let Some(agent) = detect() {
     eprintln!("running under {}", agent.name);
+    // URL-safe slug, e.g. "claude-code"
+    let slug = agent.id.as_str();
 }
 ```
 

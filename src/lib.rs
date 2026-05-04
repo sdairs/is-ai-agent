@@ -51,6 +51,33 @@ pub enum AgentId {
     Unknown,
 }
 
+impl AgentId {
+    /// A stable, URL-safe lowercase slug for this agent.
+    ///
+    /// These slugs round-trip through the `AGENT` env var convention:
+    /// setting `AGENT=<slug>` will be classified back to the same `AgentId`.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AgentId::ClaudeCode => "claude-code",
+            AgentId::Cursor => "cursor",
+            AgentId::CursorCli => "cursor-cli",
+            AgentId::GeminiCli => "gemini-cli",
+            AgentId::Codex => "codex",
+            AgentId::Augment => "augment",
+            AgentId::Cline => "cline",
+            AgentId::OpenCode => "opencode",
+            AgentId::Trae => "trae",
+            AgentId::Goose => "goose",
+            AgentId::Amp => "amp",
+            AgentId::Devin => "devin",
+            AgentId::Replit => "replit",
+            AgentId::Antigravity => "antigravity",
+            AgentId::GitHubCopilot => "github-copilot",
+            AgentId::Unknown => "unknown",
+        }
+    }
+}
+
 /// What signal triggered the detection.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -316,6 +343,44 @@ mod tests {
             let env = env_from(&[(var, "1")]);
             let agent = detect_with(env, |_| false).unwrap();
             assert_eq!(agent.id, AgentId::GitHubCopilot, "var={var}");
+        }
+    }
+
+    #[test]
+    fn as_str_returns_url_safe_slug() {
+        assert_eq!(AgentId::ClaudeCode.as_str(), "claude-code");
+        assert_eq!(AgentId::CursorCli.as_str(), "cursor-cli");
+        assert_eq!(AgentId::GitHubCopilot.as_str(), "github-copilot");
+        assert_eq!(AgentId::Goose.as_str(), "goose");
+        assert_eq!(AgentId::Unknown.as_str(), "unknown");
+    }
+
+    #[test]
+    fn as_str_round_trips_through_agent_var() {
+        for id in [
+            AgentId::ClaudeCode,
+            AgentId::Cursor,
+            AgentId::CursorCli,
+            AgentId::GeminiCli,
+            AgentId::Codex,
+            AgentId::Augment,
+            AgentId::Cline,
+            AgentId::OpenCode,
+            AgentId::Trae,
+            AgentId::Goose,
+            AgentId::Amp,
+            AgentId::Devin,
+            AgentId::Replit,
+            AgentId::Antigravity,
+            AgentId::GitHubCopilot,
+        ] {
+            let slug = id.as_str();
+            let env = env_from(&[("AGENT", slug)]);
+            assert_eq!(
+                detect_with(env, |_| false).unwrap().id,
+                id,
+                "slug {slug} did not round-trip"
+            );
         }
     }
 
