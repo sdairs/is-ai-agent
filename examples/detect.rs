@@ -11,6 +11,7 @@ fn main() {
             let source = match &agent.signal {
                 Signal::EnvVar { name, value } => format!("env {name}={value}"),
                 Signal::File { path } => format!("file {path}"),
+                _ => "unknown signal".to_string(),
             };
             println!("agent: {} ({:?}) via {}", agent.name, agent.id, source);
             println!(r#"{{"error":"config_missing","suggestion":"run ./setup.sh"}}"#);

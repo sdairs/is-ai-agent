@@ -1,6 +1,6 @@
 [package]
 name = "is-ai-agent"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Detect whether a CLI is being invoked by an AI coding agent, and identify which one."
 license = "MIT OR Apache-2.0"

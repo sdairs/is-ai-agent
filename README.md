@@ -8,7 +8,7 @@ Inspired by the [`AGENT` environment variable proposal](https://github.com/agent
 
 ```toml
 [dependencies]
-is-ai-agent = "0.1"
+is-ai-agent = "0.2"
 ```
 
 ## Usage
@@ -38,20 +38,24 @@ let agent = detect_with(
 
 ## Detection order
 
-1. The proposed standard `AGENT` env var. Its value is mapped to a known agent (`goose`, `amp`, `claude-code`, `cursor`, `gemini-cli`, `codex`, `augment`, `cline`, `opencode`, `trae`, `devin`); generic values like `1` / `true` resolve to `AgentId::Unknown`.
+1. The proposed standard `AGENT` env var. Its value is mapped to a known agent (`goose`, `amp`, `claude-code`, `cursor`, `cursor-cli`, `gemini-cli`, `codex`, `augment`, `cline`, `opencode`, `trae`, `devin`, `replit`, `antigravity`, `github-copilot`); generic values like `1` / `true` resolve to `AgentId::Unknown`.
 2. Tool-specific env vars:
 
    | Variable | Agent |
    |---|---|
-   | `CLAUDECODE` | Claude Code |
-   | `CURSOR_AGENT` | Cursor |
+   | `CLAUDECODE`, `CLAUDE_CODE` | Claude Code |
+   | `CURSOR_TRACE_ID` | Cursor (editor) |
+   | `CURSOR_AGENT`, `CURSOR_EXTENSION_HOST_ROLE=agent-exec` | Cursor CLI |
    | `GEMINI_CLI` | Gemini CLI |
-   | `CODEX_SANDBOX` | OpenAI Codex |
+   | `CODEX_SANDBOX`, `CODEX_CI`, `CODEX_THREAD_ID` | OpenAI Codex |
+   | `ANTIGRAVITY_AGENT` | Antigravity |
    | `AUGMENT_AGENT` | Augment |
    | `CLINE_ACTIVE` | Cline |
    | `OPENCODE_CLIENT` | OpenCode |
    | `TRAE_AI_SHELL_ID` | TRAE AI |
    | `GOOSE_TERMINAL` | Goose |
+   | `REPL_ID` | Replit |
+   | `COPILOT_MODEL`, `COPILOT_ALLOW_ALL`, `COPILOT_GITHUB_TOKEN` | GitHub Copilot |
 
 3. Filesystem signals:
 

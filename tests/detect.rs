@@ -15,7 +15,7 @@ fn public_api_detects_via_agent_var() {
             assert_eq!(name, "AGENT");
             assert_eq!(value, "amp");
         }
-        Signal::File { .. } => panic!("expected env var signal"),
+        _ => panic!("expected env var signal"),
     }
 }
 
