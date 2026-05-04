@@ -1,0 +1,18 @@
+[package]
+name = "is-ai-agent"
+version = "0.1.0"
+edition = "2024"
+description = "Detect whether a CLI is being invoked by an AI coding agent, and identify which one."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/sdairs/is-ai-agent"
+homepage = "https://github.com/sdairs/is-ai-agent"
+documentation = "https://docs.rs/is-ai-agent"
+readme = "README.md"
+keywords = ["ai", "agent", "cli", "detect", "claude"]
+categories = ["command-line-interface", "development-tools"]
+
+[dependencies]
+
+[[example]]
+name = "detect"
+path = "examples/detect.rs"
