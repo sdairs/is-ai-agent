@@ -2,9 +2,14 @@
 //! and identify which one.
 //!
 //! Detection order:
-//! 1. The proposed standard `AGENT` env var (see agentsmd/agents.md#136).
+//! 1. The generic `AGENT` (agentsmd/agents.md#136) and `AI_AGENT`
+//!    (@vercel/detect-agent) env vars, when their value names a known agent.
 //! 2. Tool-specific env vars (`CLAUDECODE`, `CURSOR_AGENT`, ...).
 //! 3. Filesystem signals (e.g. `/opt/.devin`).
+//! 4. A bare truthy `AGENT`/`AI_AGENT` (e.g. `AGENT=1`) as a last resort,
+//!    resolving to [`AgentId::Unknown`]. Tool-specific vars outrank it so
+//!    agents that set both (e.g. OpenCode sets `AGENT=1` and `OPENCODE=1`)
+//!    are still identified.
 //!
 //! ```no_run
 //! if is_ai_agent::is_ai_agent() {
@@ -48,6 +53,11 @@ pub enum AgentId {
     Replit,
     Antigravity,
     GitHubCopilot,
+    Crush,
+    QwenCode,
+    IflowCli,
+    AmazonQCli,
+    RooCode,
     Unknown,
 }
 
@@ -73,6 +83,11 @@ impl AgentId {
             AgentId::Replit => "replit",
             AgentId::Antigravity => "antigravity",
             AgentId::GitHubCopilot => "github-copilot",
+            AgentId::Crush => "crush",
+            AgentId::QwenCode => "qwen-code",
+            AgentId::IflowCli => "iflow-cli",
+            AgentId::AmazonQCli => "amazon-q-cli",
+            AgentId::RooCode => "roo-code",
             AgentId::Unknown => "unknown",
         }
     }
@@ -87,24 +102,58 @@ pub enum Signal {
 }
 
 const TOOL_VARS: &[(&str, AgentId, &str)] = &[
+    // Amp sets CLAUDECODE=1 for compatibility, so its own marker must be
+    // checked before Claude Code's.
+    ("AMP_CURRENT_THREAD_ID", AgentId::Amp, "Amp"),
     ("CLAUDECODE", AgentId::ClaudeCode, "Claude Code"),
-    ("CLAUDE_CODE", AgentId::ClaudeCode, "Claude Code"),
-    ("CURSOR_TRACE_ID", AgentId::Cursor, "Cursor"),
-    ("CURSOR_AGENT", AgentId::CursorCli, "Cursor CLI"),
+    ("CLAUDE_CODE_ENTRYPOINT", AgentId::ClaudeCode, "Claude Code"),
+    ("CLAUDE_CODE_SESSION_ID", AgentId::ClaudeCode, "Claude Code"),
+    ("CLAUDE_CODE_EXECPATH", AgentId::ClaudeCode, "Claude Code"),
+    // Set by both the Cursor CLI and the IDE's agent terminals, so it only
+    // proves "some Cursor agent surface", not specifically the CLI.
+    ("CURSOR_AGENT", AgentId::Cursor, "Cursor"),
+    ("CURSOR_SANDBOX", AgentId::CursorCli, "Cursor CLI"),
+    // Qwen Code is a Gemini CLI fork; its marker must precede Gemini's.
+    ("QWEN_CODE", AgentId::QwenCode, "Qwen Code"),
     ("GEMINI_CLI", AgentId::GeminiCli, "Gemini CLI"),
-    ("CODEX_SANDBOX", AgentId::Codex, "OpenAI Codex"),
-    ("CODEX_CI", AgentId::Codex, "OpenAI Codex"),
     ("CODEX_THREAD_ID", AgentId::Codex, "OpenAI Codex"),
+    ("CODEX_SANDBOX", AgentId::Codex, "OpenAI Codex"),
+    (
+        "CODEX_SANDBOX_NETWORK_DISABLED",
+        AgentId::Codex,
+        "OpenAI Codex",
+    ),
+    ("CODEX_CI", AgentId::Codex, "OpenAI Codex"),
     ("ANTIGRAVITY_AGENT", AgentId::Antigravity, "Antigravity"),
     ("AUGMENT_AGENT", AgentId::Augment, "Augment"),
     ("CLINE_ACTIVE", AgentId::Cline, "Cline"),
+    ("ROO_ACTIVE", AgentId::RooCode, "Roo Code"),
+    ("CRUSH", AgentId::Crush, "Crush"),
+    ("IFLOW_CLI", AgentId::IflowCli, "iFlow CLI"),
+    ("OPENCODE", AgentId::OpenCode, "OpenCode"),
+    ("OPENCODE_PID", AgentId::OpenCode, "OpenCode"),
+    // No longer set in plain CLI/TUI use (only acp/desktop embeddings).
     ("OPENCODE_CLIENT", AgentId::OpenCode, "OpenCode"),
     ("TRAE_AI_SHELL_ID", AgentId::Trae, "TRAE AI"),
     ("GOOSE_TERMINAL", AgentId::Goose, "Goose"),
     ("REPL_ID", AgentId::Replit, "Replit"),
+    (
+        "COPILOT_AGENT_SESSION_ID",
+        AgentId::GitHubCopilot,
+        "GitHub Copilot",
+    ),
+    // Inherited user config rather than injected markers — weaker signals.
     ("COPILOT_MODEL", AgentId::GitHubCopilot, "GitHub Copilot"),
-    ("COPILOT_ALLOW_ALL", AgentId::GitHubCopilot, "GitHub Copilot"),
-    ("COPILOT_GITHUB_TOKEN", AgentId::GitHubCopilot, "GitHub Copilot"),
+    (
+        "COPILOT_ALLOW_ALL",
+        AgentId::GitHubCopilot,
+        "GitHub Copilot",
+    ),
+    (
+        "COPILOT_GITHUB_TOKEN",
+        AgentId::GitHubCopilot,
+        "GitHub Copilot",
+    ),
 ];
 
 const FILE_SIGNALS: &[(&str, AgentId, &str)] = &[("/opt/.devin", AgentId::Devin, "Devin")];
@@ -126,28 +175,74 @@ where
     E: Fn(&str) -> Option<String>,
     F: Fn(&str) -> bool,
 {
-    if let Some(value) = nonempty(env("AGENT")) {
-        let (id, name) = classify_agent_value(&value);
-        return Some(Agent {
-            id,
-            name,
-            signal: Signal::EnvVar { name: "AGENT", value },
-        });
+    // Generic vars win outright when they name a known agent. A bare truthy
+    // value (`AGENT=1`) only proves *an* agent is present, so it is held as
+    // a fallback while the more specific signals below get a chance to
+    // identify the tool — e.g. OpenCode sets both AGENT=1 and OPENCODE=1.
+    let mut generic_fallback = None;
+    for var in ["AGENT", "AI_AGENT"] {
+        if let Some(value) = nonempty(env(var)) {
+            let (id, name) = classify_agent_value(agent_name_part(&value));
+            let agent = Agent {
+                id,
+                name,
+                signal: Signal::EnvVar { name: var, value },
+            };
+            if id != AgentId::Unknown {
+                return Some(agent);
+            }
+            if generic_fallback.is_none() {
+                generic_fallback = Some(agent);
+            }
+        }
     }
 
     // Special-cased value match: Cursor's extension host signals an agent
     // execution context only when the value equals "agent-exec".
-    if let Some(value) = nonempty(env("CURSOR_EXTENSION_HOST_ROLE")) {
-        if value.trim() == "agent-exec" {
-            return Some(Agent {
-                id: AgentId::CursorCli,
-                name: "Cursor CLI",
-                signal: Signal::EnvVar {
-                    name: "CURSOR_EXTENSION_HOST_ROLE",
-                    value,
-                },
-            });
-        }
+    if let Some(value) = nonempty(env("CURSOR_EXTENSION_HOST_ROLE"))
+        && value.trim() == "agent-exec"
+    {
+        return Some(Agent {
+            id: AgentId::CursorCli,
+            name: "Cursor CLI",
+            signal: Signal::EnvVar {
+                name: "CURSOR_EXTENSION_HOST_ROLE",
+                value,
+            },
+        });
+    }
+
+    // Special-cased combination match: older Cursor builds (pre ~v3.7) set
+    // CURSOR_TRACE_ID in every integrated terminal, including interactive
+    // human sessions. Agent mode is distinguished by the PAGER override
+    // Cursor applies when running commands itself.
+    if let Some(value) = nonempty(env("CURSOR_TRACE_ID"))
+        && env("PAGER").as_deref() == Some("head -n 10000 | cat")
+    {
+        return Some(Agent {
+            id: AgentId::Cursor,
+            name: "Cursor",
+            signal: Signal::EnvVar {
+                name: "CURSOR_TRACE_ID",
+                value,
+            },
+        });
+    }
+
+    // Special-cased substring match: Amazon Q Developer CLI appends itself
+    // to AWS_EXECUTION_ENV (e.g. "AmazonQ-For-CLI Version/1.16.0"), a var
+    // that other AWS runtimes also set.
+    if let Some(value) = nonempty(env("AWS_EXECUTION_ENV"))
+        && value.contains("AmazonQ-For-CLI")
+    {
+        return Some(Agent {
+            id: AgentId::AmazonQCli,
+            name: "Amazon Q Developer CLI",
+            signal: Signal::EnvVar {
+                name: "AWS_EXECUTION_ENV",
+                value,
+            },
+        });
     }
 
     for &(var, id, name) in TOOL_VARS {
@@ -170,11 +265,21 @@ where
         }
     }
 
-    None
+    generic_fallback
 }
 
 fn nonempty(v: Option<String>) -> Option<String> {
     v.filter(|s| !s.is_empty())
+}
+
+/// Extract the agent name from a generic var value. Strips the version
+/// suffixes in the wild: `name@version` (Vercel's @vercel/detect-agent
+/// convention, e.g. `v0@1.2.3`) and `name_version_surface` (Claude Code's
+/// AI_AGENT shape, e.g. `claude-code_2.1.0_cli`).
+fn agent_name_part(value: &str) -> &str {
+    let name = value.trim();
+    let name = name.split('@').next().unwrap_or(name);
+    name.split('_').next().unwrap_or(name)
 }
 
 fn classify_agent_value(value: &str) -> (AgentId, &'static str) {
@@ -194,6 +299,11 @@ fn classify_agent_value(value: &str) -> (AgentId, &'static str) {
         "replit" => (AgentId::Replit, "Replit"),
         "antigravity" => (AgentId::Antigravity, "Antigravity"),
         "github-copilot" | "github-copilot-cli" => (AgentId::GitHubCopilot, "GitHub Copilot"),
+        "crush" => (AgentId::Crush, "Crush"),
+        "qwen" | "qwen-code" | "qwencode" => (AgentId::QwenCode, "Qwen Code"),
+        "iflow" | "iflow-cli" => (AgentId::IflowCli, "iFlow CLI"),
+        "amazonq" | "amazon-q" | "amazon-q-cli" => (AgentId::AmazonQCli, "Amazon Q Developer CLI"),
+        "roo" | "roo-code" | "roocode" => (AgentId::RooCode, "Roo Code"),
         _ => (AgentId::Unknown, "AI agent"),
     }
 }
@@ -224,7 +334,10 @@ mod tests {
         assert_eq!(agent.id, AgentId::Goose);
         assert_eq!(
             agent.signal,
-            Signal::EnvVar { name: "AGENT", value: "goose".to_string() }
+            Signal::EnvVar {
+                name: "AGENT",
+                value: "goose".to_string()
+            }
         );
     }
 
@@ -252,10 +365,13 @@ mod tests {
     fn tool_var_falls_back_when_agent_unset() {
         let env = env_from(&[("CURSOR_AGENT", "1")]);
         let agent = detect_with(env, |_| false).unwrap();
-        assert_eq!(agent.id, AgentId::CursorCli);
+        assert_eq!(agent.id, AgentId::Cursor);
         assert_eq!(
             agent.signal,
-            Signal::EnvVar { name: "CURSOR_AGENT", value: "1".to_string() }
+            Signal::EnvVar {
+                name: "CURSOR_AGENT",
+                value: "1".to_string()
+            }
         );
     }
 
@@ -270,34 +386,175 @@ mod tests {
         let env = env_from(&[]);
         let agent = detect_with(env, |p| p == "/opt/.devin").unwrap();
         assert_eq!(agent.id, AgentId::Devin);
-        assert_eq!(agent.signal, Signal::File { path: "/opt/.devin" });
+        assert_eq!(
+            agent.signal,
+            Signal::File {
+                path: "/opt/.devin"
+            }
+        );
     }
 
     #[test]
     fn env_vars_take_priority_over_files() {
         let env = env_from(&[("CLAUDECODE", "1")]);
-        assert_eq!(
-            detect_with(env, |_| true).unwrap().id,
-            AgentId::ClaudeCode
-        );
+        assert_eq!(detect_with(env, |_| true).unwrap().id, AgentId::ClaudeCode);
     }
 
     #[test]
-    fn claude_code_alias_var_detected() {
-        let env = env_from(&[("CLAUDE_CODE", "1")]);
+    fn claude_code_sibling_vars_detected() {
+        for var in [
+            "CLAUDE_CODE_ENTRYPOINT",
+            "CLAUDE_CODE_SESSION_ID",
+            "CLAUDE_CODE_EXECPATH",
+        ] {
+            let env = env_from(&[(var, "x")]);
+            let agent = detect_with(env, |_| false).unwrap();
+            assert_eq!(agent.id, AgentId::ClaudeCode, "var={var}");
+        }
+    }
+
+    #[test]
+    fn ai_agent_var_with_known_name_classifies() {
+        let env = env_from(&[("AI_AGENT", "crush")]);
         let agent = detect_with(env, |_| false).unwrap();
-        assert_eq!(agent.id, AgentId::ClaudeCode);
+        assert_eq!(agent.id, AgentId::Crush);
         assert_eq!(
             agent.signal,
-            Signal::EnvVar { name: "CLAUDE_CODE", value: "1".to_string() }
+            Signal::EnvVar {
+                name: "AI_AGENT",
+                value: "crush".to_string()
+            }
         );
     }
 
     #[test]
-    fn cursor_editor_detected_via_trace_id() {
-        let env = env_from(&[("CURSOR_TRACE_ID", "abc123")]);
+    fn ai_agent_var_strips_version_suffixes() {
+        // Claude Code's shape: name_version_surface.
+        let env = env_from(&[("AI_AGENT", "claude-code_2.1.0_cli")]);
+        assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::ClaudeCode);
+
+        // Vercel's @vercel/detect-agent shape: name@version.
+        let env = env_from(&[("AI_AGENT", "goose@1.2.3")]);
+        assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::Goose);
+    }
+
+    #[test]
+    fn truthy_agent_var_defers_to_tool_vars() {
+        // OpenCode sets AGENT=1 alongside its own markers; the specific
+        // marker must win over the generic truthy value.
+        let env = env_from(&[("AGENT", "1"), ("OPENCODE", "1")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::OpenCode);
+        assert_eq!(
+            agent.signal,
+            Signal::EnvVar {
+                name: "OPENCODE",
+                value: "1".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn truthy_agent_var_defers_to_file_signals() {
+        let env = env_from(&[("AGENT", "true")]);
+        let agent = detect_with(env, |p| p == "/opt/.devin").unwrap();
+        assert_eq!(agent.id, AgentId::Devin);
+    }
+
+    #[test]
+    fn truthy_ai_agent_var_is_unknown_fallback() {
+        let env = env_from(&[("AI_AGENT", "1")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::Unknown);
+        assert_eq!(
+            agent.signal,
+            Signal::EnvVar {
+                name: "AI_AGENT",
+                value: "1".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn amp_marker_outranks_claudecode_compat_var() {
+        // Amp sets CLAUDECODE=1 for compatibility.
+        let env = env_from(&[("AMP_CURRENT_THREAD_ID", "t-1"), ("CLAUDECODE", "1")]);
+        assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::Amp);
+    }
+
+    #[test]
+    fn qwen_code_outranks_gemini_cli_var() {
+        // Qwen Code is a Gemini CLI fork.
+        let env = env_from(&[("QWEN_CODE", "1"), ("GEMINI_CLI", "1")]);
+        assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::QwenCode);
+    }
+
+    #[test]
+    fn new_tool_vars_detected() {
+        for (var, expected) in [
+            ("CRUSH", AgentId::Crush),
+            ("QWEN_CODE", AgentId::QwenCode),
+            ("IFLOW_CLI", AgentId::IflowCli),
+            ("ROO_ACTIVE", AgentId::RooCode),
+            ("OPENCODE", AgentId::OpenCode),
+            ("OPENCODE_PID", AgentId::OpenCode),
+            ("CURSOR_SANDBOX", AgentId::CursorCli),
+            ("CODEX_SANDBOX_NETWORK_DISABLED", AgentId::Codex),
+            ("AMP_CURRENT_THREAD_ID", AgentId::Amp),
+            ("COPILOT_AGENT_SESSION_ID", AgentId::GitHubCopilot),
+        ] {
+            let env = env_from(&[(var, "1")]);
+            let agent = detect_with(env, |_| false).unwrap();
+            assert_eq!(agent.id, expected, "var={var}");
+        }
+    }
+
+    #[test]
+    fn amazon_q_detected_via_aws_execution_env_substring() {
+        let env = env_from(&[("AWS_EXECUTION_ENV", "AmazonQ-For-CLI Version/1.16.0")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::AmazonQCli);
+    }
+
+    #[test]
+    fn aws_execution_env_without_amazon_q_ignored() {
+        let env = env_from(&[("AWS_EXECUTION_ENV", "AWS_Lambda_nodejs22.x")]);
+        assert!(detect_with(env, |_| false).is_none());
+    }
+
+    #[test]
+    fn cursor_trace_id_with_pager_override_detected() {
+        let env = env_from(&[
+            ("CURSOR_TRACE_ID", "abc123"),
+            ("PAGER", "head -n 10000 | cat"),
+        ]);
         let agent = detect_with(env, |_| false).unwrap();
         assert_eq!(agent.id, AgentId::Cursor);
+        assert_eq!(
+            agent.signal,
+            Signal::EnvVar {
+                name: "CURSOR_TRACE_ID",
+                value: "abc123".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn cursor_trace_id_alone_is_interactive_not_agent() {
+        // Older Cursor builds set CURSOR_TRACE_ID for human terminal
+        // sessions too; without the agent-mode PAGER override it must not
+        // count as an agent.
+        let env = env_from(&[("CURSOR_TRACE_ID", "abc123")]);
+        assert!(detect_with(env, |_| false).is_none());
+    }
+
+    #[test]
+    fn cursor_agent_var_maps_to_generic_cursor() {
+        // CURSOR_AGENT is set by both the CLI and the IDE's agent terminals.
+        let env = env_from(&[("CURSOR_AGENT", "1")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::Cursor);
+        assert_eq!(agent.name, "Cursor");
     }
 
     #[test]
@@ -373,6 +630,11 @@ mod tests {
             AgentId::Replit,
             AgentId::Antigravity,
             AgentId::GitHubCopilot,
+            AgentId::Crush,
+            AgentId::QwenCode,
+            AgentId::IflowCli,
+            AgentId::AmazonQCli,
+            AgentId::RooCode,
         ] {
             let slug = id.as_str();
             let env = env_from(&[("AGENT", slug)]);
@@ -393,9 +655,18 @@ mod tests {
             ("github-copilot-cli", AgentId::GitHubCopilot),
             ("cursor-cli", AgentId::CursorCli),
             ("augment-cli", AgentId::Augment),
+            ("crush", AgentId::Crush),
+            ("qwen", AgentId::QwenCode),
+            ("iflow", AgentId::IflowCli),
+            ("amazonq", AgentId::AmazonQCli),
+            ("roo", AgentId::RooCode),
         ] {
             let env = env_from(&[("AGENT", val)]);
-            assert_eq!(detect_with(env, |_| false).unwrap().id, expected, "val={val}");
+            assert_eq!(
+                detect_with(env, |_| false).unwrap().id,
+                expected,
+                "val={val}"
+            );
         }
     }
 }

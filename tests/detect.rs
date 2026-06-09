@@ -3,7 +3,13 @@ use is_ai_agent::{Agent, AgentId, Signal, detect_with};
 #[test]
 fn public_api_detects_via_agent_var() {
     let agent: Agent = detect_with(
-        |name| if name == "AGENT" { Some("amp".into()) } else { None },
+        |name| {
+            if name == "AGENT" {
+                Some("amp".into())
+            } else {
+                None
+            }
+        },
         |_| false,
     )
     .expect("agent detected");
@@ -22,7 +28,13 @@ fn public_api_detects_via_agent_var() {
 #[test]
 fn public_api_detects_via_tool_var() {
     let agent = detect_with(
-        |name| if name == "CLAUDECODE" { Some("1".into()) } else { None },
+        |name| {
+            if name == "CLAUDECODE" {
+                Some("1".into())
+            } else {
+                None
+            }
+        },
         |_| false,
     )
     .unwrap();
