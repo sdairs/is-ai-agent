@@ -31,6 +31,16 @@ pub struct Agent {
     pub id: AgentId,
     pub name: &'static str,
     pub signal: Signal,
+    /// A stable identifier for the agent's current session/conversation, when
+    /// the agent exposes one to its subprocesses via an env var.
+    ///
+    /// The vendors call this variously a session, thread, or trace id; here it
+    /// is unified as "the identifier that correlates every tool invocation in
+    /// one agent run". It is opaque and only comparable within the same agent
+    /// — pair it with [`AgentId`] before correlating across surfaces. `None`
+    /// when the detected agent doesn't publish one (e.g. Gemini CLI and Crush
+    /// only expose it to hooks, not to ordinary subprocesses).
+    pub session_id: Option<String>,
 }
 
 /// Canonical identifier for a known agent, or `Unknown` when an agent is
@@ -158,6 +168,22 @@ const TOOL_VARS: &[(&str, AgentId, &str)] = &[
 
 const FILE_SIGNALS: &[(&str, AgentId, &str)] = &[("/opt/.devin", AgentId::Devin, "Devin")];
 
+/// Per-agent env vars that carry a session/thread/trace identifier reachable
+/// from spawned subprocesses, in priority order. Only agents that publish such
+/// an id to ordinary subprocesses appear here.
+const SESSION_ID_VARS: &[(AgentId, &[&str])] = &[
+    (AgentId::ClaudeCode, &["CLAUDE_CODE_SESSION_ID"]),
+    (AgentId::Codex, &["CODEX_THREAD_ID"]),
+    // Amp sets both to the same thread id; AGENT_THREAD_ID is the fallback.
+    (AgentId::Amp, &["AMP_CURRENT_THREAD_ID", "AGENT_THREAD_ID"]),
+    (AgentId::QwenCode, &["QWEN_CODE_SESSION_ID"]),
+    // Cursor exposes only a trace id; its per-session vs per-command scope is
+    // undocumented, so callers correlating on it should expect possible churn.
+    (AgentId::Cursor, &["CURSOR_TRACE_ID"]),
+    (AgentId::CursorCli, &["CURSOR_TRACE_ID"]),
+    (AgentId::GitHubCopilot, &["COPILOT_AGENT_SESSION_ID"]),
+];
+
 /// Returns `true` if any AI agent signal is present.
 pub fn is_ai_agent() -> bool {
     detect().is_some()
@@ -175,6 +201,15 @@ where
     E: Fn(&str) -> Option<String>,
     F: Fn(&str) -> bool,
 {
+    // Builds the result, resolving the agent's session id from the same
+    // environment so every construction site stays consistent.
+    let make = |id: AgentId, name: &'static str, signal: Signal| Agent {
+        id,
+        name,
+        signal,
+        session_id: session_id_for(id, &env),
+    };
+
     // Generic vars win outright when they name a known agent. A bare truthy
     // value (`AGENT=1`) only proves *an* agent is present, so it is held as
     // a fallback while the more specific signals below get a chance to
@@ -183,11 +218,7 @@ where
     for var in ["AGENT", "AI_AGENT"] {
         if let Some(value) = nonempty(env(var)) {
             let (id, name) = classify_agent_value(agent_name_part(&value));
-            let agent = Agent {
-                id,
-                name,
-                signal: Signal::EnvVar { name: var, value },
-            };
+            let agent = make(id, name, Signal::EnvVar { name: var, value });
             if id != AgentId::Unknown {
                 return Some(agent);
             }
@@ -202,14 +233,14 @@ where
     if let Some(value) = nonempty(env("CURSOR_EXTENSION_HOST_ROLE"))
         && value.trim() == "agent-exec"
     {
-        return Some(Agent {
-            id: AgentId::CursorCli,
-            name: "Cursor CLI",
-            signal: Signal::EnvVar {
+        return Some(make(
+            AgentId::CursorCli,
+            "Cursor CLI",
+            Signal::EnvVar {
                 name: "CURSOR_EXTENSION_HOST_ROLE",
                 value,
             },
-        });
+        ));
     }
 
     // Special-cased combination match: older Cursor builds (pre ~v3.7) set
@@ -219,14 +250,14 @@ where
     if let Some(value) = nonempty(env("CURSOR_TRACE_ID"))
         && env("PAGER").as_deref() == Some("head -n 10000 | cat")
     {
-        return Some(Agent {
-            id: AgentId::Cursor,
-            name: "Cursor",
-            signal: Signal::EnvVar {
+        return Some(make(
+            AgentId::Cursor,
+            "Cursor",
+            Signal::EnvVar {
                 name: "CURSOR_TRACE_ID",
                 value,
             },
-        });
+        ));
     }
 
     // Special-cased substring match: Amazon Q Developer CLI appends itself
@@ -235,37 +266,42 @@ where
     if let Some(value) = nonempty(env("AWS_EXECUTION_ENV"))
         && value.contains("AmazonQ-For-CLI")
     {
-        return Some(Agent {
-            id: AgentId::AmazonQCli,
-            name: "Amazon Q Developer CLI",
-            signal: Signal::EnvVar {
+        return Some(make(
+            AgentId::AmazonQCli,
+            "Amazon Q Developer CLI",
+            Signal::EnvVar {
                 name: "AWS_EXECUTION_ENV",
                 value,
             },
-        });
+        ));
     }
 
     for &(var, id, name) in TOOL_VARS {
         if let Some(value) = nonempty(env(var)) {
-            return Some(Agent {
-                id,
-                name,
-                signal: Signal::EnvVar { name: var, value },
-            });
+            return Some(make(id, name, Signal::EnvVar { name: var, value }));
         }
     }
 
     for &(path, id, name) in FILE_SIGNALS {
         if file_exists(path) {
-            return Some(Agent {
-                id,
-                name,
-                signal: Signal::File { path },
-            });
+            return Some(make(id, name, Signal::File { path }));
         }
     }
 
     generic_fallback
+}
+
+/// Resolve the session/thread/trace id the given agent exposes via env vars,
+/// trying each candidate var in priority order.
+fn session_id_for<E>(id: AgentId, env: &E) -> Option<String>
+where
+    E: Fn(&str) -> Option<String>,
+{
+    let vars = SESSION_ID_VARS
+        .iter()
+        .find(|(agent, _)| *agent == id)
+        .map(|(_, vars)| *vars)?;
+    vars.iter().find_map(|var| nonempty(env(var)))
 }
 
 fn nonempty(v: Option<String>) -> Option<String> {
@@ -601,6 +637,103 @@ mod tests {
             let agent = detect_with(env, |_| false).unwrap();
             assert_eq!(agent.id, AgentId::GitHubCopilot, "var={var}");
         }
+    }
+
+    #[test]
+    fn claude_code_session_id_extracted() {
+        let env = env_from(&[
+            ("CLAUDECODE", "1"),
+            (
+                "CLAUDE_CODE_SESSION_ID",
+                "c3bb91d6-b133-4b8f-8ef5-7b4824bf9e00",
+            ),
+        ]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::ClaudeCode);
+        assert_eq!(
+            agent.session_id.as_deref(),
+            Some("c3bb91d6-b133-4b8f-8ef5-7b4824bf9e00")
+        );
+    }
+
+    #[test]
+    fn session_id_resolved_on_generic_var_path() {
+        // Claude Code identifies via AI_AGENT=claude-code_<ver>_agent, which
+        // short-circuits before TOOL_VARS; the session id must still resolve.
+        let env = env_from(&[
+            ("AI_AGENT", "claude-code_2.1.179_agent"),
+            ("CLAUDE_CODE_SESSION_ID", "abc"),
+        ]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::ClaudeCode);
+        assert_eq!(agent.session_id.as_deref(), Some("abc"));
+    }
+
+    #[test]
+    fn session_id_none_when_agent_has_no_session_var() {
+        let env = env_from(&[("AGENT", "goose")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::Goose);
+        assert_eq!(agent.session_id, None);
+    }
+
+    #[test]
+    fn session_id_none_when_var_absent() {
+        let env = env_from(&[("CLAUDECODE", "1")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::ClaudeCode);
+        assert_eq!(agent.session_id, None);
+    }
+
+    #[test]
+    fn codex_thread_id_is_session_id() {
+        let env = env_from(&[("CODEX_THREAD_ID", "th-123")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::Codex);
+        assert_eq!(agent.session_id.as_deref(), Some("th-123"));
+    }
+
+    #[test]
+    fn amp_session_id_prefers_current_thread_then_falls_back() {
+        let env = env_from(&[("AMP_CURRENT_THREAD_ID", "T-primary")]);
+        assert_eq!(
+            detect_with(env, |_| false).unwrap().session_id.as_deref(),
+            Some("T-primary")
+        );
+
+        // AGENT_THREAD_ID is the documented fallback when the primary is unset.
+        // Amp still needs an identifying marker; AGENT=amp provides it.
+        let env = env_from(&[("AGENT", "amp"), ("AGENT_THREAD_ID", "T-fallback")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::Amp);
+        assert_eq!(agent.session_id.as_deref(), Some("T-fallback"));
+    }
+
+    #[test]
+    fn qwen_code_session_id_extracted() {
+        let env = env_from(&[("QWEN_CODE", "1"), ("QWEN_CODE_SESSION_ID", "q-1")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::QwenCode);
+        assert_eq!(agent.session_id.as_deref(), Some("q-1"));
+    }
+
+    #[test]
+    fn cursor_trace_id_doubles_as_session_id() {
+        let env = env_from(&[
+            ("CURSOR_TRACE_ID", "trace-9"),
+            ("PAGER", "head -n 10000 | cat"),
+        ]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::Cursor);
+        assert_eq!(agent.session_id.as_deref(), Some("trace-9"));
+    }
+
+    #[test]
+    fn copilot_session_id_extracted() {
+        let env = env_from(&[("COPILOT_AGENT_SESSION_ID", "sess-7")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::GitHubCopilot);
+        assert_eq!(agent.session_id.as_deref(), Some("sess-7"));
     }
 
     #[test]

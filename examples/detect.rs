@@ -14,6 +14,10 @@ fn main() {
                 _ => "unknown signal".to_string(),
             };
             println!("agent: {} ({:?}) via {}", agent.name, agent.id, source);
+            match &agent.session_id {
+                Some(id) => println!("session: {id}"),
+                None => println!("session: <none exposed>"),
+            }
             println!(r#"{{"error":"config_missing","suggestion":"run ./setup.sh"}}"#);
         }
         None => {
