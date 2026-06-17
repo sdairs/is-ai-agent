@@ -25,8 +25,12 @@ if let Some(agent) = detect() {
     // URL-safe slug, e.g. "claude-code"
     let slug = agent.id.as_str();
     // Stable id for this agent run, when the agent publishes one.
-    if let Some(session) = agent.session_id {
+    if let Some(session) = &agent.session_id {
         eprintln!("session: {session}");
+    }
+    // Active W3C trace context, when present — forward it downstream.
+    if let Some(trace_id) = agent.trace_id() {
+        eprintln!("trace: {trace_id}");
     }
 }
 ```
@@ -47,6 +51,12 @@ The value is opaque and only comparable *within the same agent* — pair it with
 | GitHub Copilot | `COPILOT_AGENT_SESSION_ID` | |
 
 Gemini CLI and Crush expose a session id only to *hooks*, not to ordinary subprocesses, so no id is available there.
+
+### Trace context
+
+When the agent runs under [OpenTelemetry tracing](https://www.w3.org/TR/trace-context/), it may publish a `TRACEPARENT` to its subprocesses. `Agent::traceparent` exposes the raw W3C value (forward it as a `traceparent` header to keep downstream requests on the same distributed trace), and `Agent::trace_id()` extracts just the 32-hex trace-id correlation key.
+
+`TRACEPARENT` is a standard var name, so it's read directly rather than per agent. Among the agents here, **Claude Code** and **Qwen Code** propagate it — both gated behind telemetry being enabled, and off by default (Claude Code additionally requires `CLAUDE_CODE_PROPAGATE_TRACEPARENT`; Qwen Code requires `outboundCorrelation.propagateTraceContext`). For other agents a `traceparent` appears only if one was already present in the ambient shell and inherited.
 
 For tests or callers that want to consult a captured environment instead of the live process, use `detect_with`:
 

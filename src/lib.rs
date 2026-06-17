@@ -41,6 +41,35 @@ pub struct Agent {
     /// when the detected agent doesn't publish one (e.g. Gemini CLI and Crush
     /// only expose it to hooks, not to ordinary subprocesses).
     pub session_id: Option<String>,
+    /// The active [W3C Trace Context] `traceparent` value, when present in the
+    /// environment — the raw header a subprocess can forward to keep
+    /// downstream requests on the same distributed trace.
+    ///
+    /// Of the agents covered here, Claude Code and Qwen Code propagate this
+    /// (both gated behind telemetry being enabled, and off by default).
+    /// Others may surface a `traceparent` only if one was already present in
+    /// the ambient shell and inherited. Use [`Agent::trace_id`] for just the
+    /// trace-id correlation key.
+    ///
+    /// [W3C Trace Context]: https://www.w3.org/TR/trace-context/#traceparent-header
+    pub traceparent: Option<String>,
+}
+
+impl Agent {
+    /// The 32-hex-digit trace-id extracted from [`Agent::traceparent`], i.e.
+    /// the correlation key shared by every span in the trace. `None` when no
+    /// `traceparent` is present or it isn't a well-formed W3C value.
+    pub fn trace_id(&self) -> Option<&str> {
+        // traceparent = version "-" trace-id "-" parent-id "-" flags
+        let mut parts = self.traceparent.as_deref()?.split('-');
+        let _version = parts.next()?;
+        let trace_id = parts.next()?;
+        // A valid trace-id is 32 lowercase hex digits and not all-zero.
+        let valid = trace_id.len() == 32
+            && trace_id.bytes().all(|b| b.is_ascii_hexdigit())
+            && trace_id.bytes().any(|b| b != b'0');
+        valid.then_some(trace_id)
+    }
 }
 
 /// Canonical identifier for a known agent, or `Unknown` when an agent is
@@ -201,13 +230,16 @@ where
     E: Fn(&str) -> Option<String>,
     F: Fn(&str) -> bool,
 {
-    // Builds the result, resolving the agent's session id from the same
-    // environment so every construction site stays consistent.
+    // Builds the result, resolving the agent's session id and the active W3C
+    // trace context from the same environment so every construction site stays
+    // consistent. `traceparent` is a standard var name (not agent-specific),
+    // so it is read directly rather than via a per-agent table.
     let make = |id: AgentId, name: &'static str, signal: Signal| Agent {
         id,
         name,
         signal,
         session_id: session_id_for(id, &env),
+        traceparent: nonempty(env("TRACEPARENT")),
     };
 
     // Generic vars win outright when they name a known agent. A bare truthy
@@ -734,6 +766,50 @@ mod tests {
         let agent = detect_with(env, |_| false).unwrap();
         assert_eq!(agent.id, AgentId::GitHubCopilot);
         assert_eq!(agent.session_id.as_deref(), Some("sess-7"));
+    }
+
+    #[test]
+    fn traceparent_surfaced_and_trace_id_parsed() {
+        let tp = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
+        let env = env_from(&[("CLAUDECODE", "1"), ("TRACEPARENT", tp)]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.traceparent.as_deref(), Some(tp));
+        assert_eq!(agent.trace_id(), Some("0af7651916cd43dd8448eb211c80319c"));
+    }
+
+    #[test]
+    fn traceparent_none_when_unset() {
+        let env = env_from(&[("CLAUDECODE", "1")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.traceparent, None);
+        assert_eq!(agent.trace_id(), None);
+    }
+
+    #[test]
+    fn traceparent_read_for_any_detected_agent() {
+        // It's a standard var, not agent-specific: surfaced even for agents
+        // that never set it themselves but inherited it from the shell.
+        let tp = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
+        let env = env_from(&[("AGENT", "goose"), ("TRACEPARENT", tp)]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::Goose);
+        assert_eq!(agent.traceparent.as_deref(), Some(tp));
+    }
+
+    #[test]
+    fn trace_id_rejects_malformed_traceparent() {
+        for bad in [
+            "garbage",
+            "00-tooshort-b7ad6b7169203331-01",
+            // all-zero trace-id is invalid per the spec
+            "00-00000000000000000000000000000000-b7ad6b7169203331-01",
+            // non-hex digit in the trace-id
+            "00-0af7651916cd43dd8448eb211c80319g-b7ad6b7169203331-01",
+        ] {
+            let env = env_from(&[("CLAUDECODE", "1"), ("TRACEPARENT", bad)]);
+            let agent = detect_with(env, |_| false).unwrap();
+            assert_eq!(agent.trace_id(), None, "traceparent={bad}");
+        }
     }
 
     #[test]

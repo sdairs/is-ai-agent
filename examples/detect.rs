@@ -18,6 +18,9 @@ fn main() {
                 Some(id) => println!("session: {id}"),
                 None => println!("session: <none exposed>"),
             }
+            if let Some(trace_id) = agent.trace_id() {
+                println!("trace: {trace_id}");
+            }
             println!(r#"{{"error":"config_missing","suggestion":"run ./setup.sh"}}"#);
         }
         None => {
