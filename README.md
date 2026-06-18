@@ -8,7 +8,7 @@ Inspired by the [`AGENT` environment variable proposal](https://github.com/agent
 
 ```toml
 [dependencies]
-is-ai-agent = "0.3"
+is-ai-agent = "0.4"
 ```
 
 ## Usage
@@ -24,8 +24,39 @@ if let Some(agent) = detect() {
     eprintln!("running under {}", agent.name);
     // URL-safe slug, e.g. "claude-code"
     let slug = agent.id.as_str();
+    // Stable id for this agent run, when the agent publishes one.
+    if let Some(session) = &agent.session_id {
+        eprintln!("session: {session}");
+    }
+    // Active W3C trace context, when present — forward it downstream.
+    if let Some(trace_id) = agent.trace_id() {
+        eprintln!("trace: {trace_id}");
+    }
 }
 ```
+
+### Session id
+
+Many agentic CLIs expose a stable identifier for the current session/conversation to the subprocesses they spawn. `Agent::session_id` surfaces it as a single unified field, so a downstream tool can stamp it onto outbound requests (headers, query comments) and a backend can correlate every call that belongs to the same agent run.
+
+The value is opaque and only comparable *within the same agent* — pair it with `agent.id` before correlating. It is `None` when the detected agent doesn't publish one.
+
+| Agent | Source env var | Notes |
+|---|---|---|
+| Claude Code | `CLAUDE_CODE_SESSION_ID` | Per-conversation UUID; shared by sub-agents and all spawned subprocesses. |
+| OpenAI Codex | `CODEX_THREAD_ID` | |
+| Amp | `AMP_CURRENT_THREAD_ID`, then `AGENT_THREAD_ID` | |
+| Qwen Code | `QWEN_CODE_SESSION_ID` | |
+| Cursor / Cursor CLI | `CURSOR_TRACE_ID` | Trace id; per-session vs per-command scope is undocumented, so correlation may fragment. |
+| GitHub Copilot | `COPILOT_AGENT_SESSION_ID` | |
+
+Gemini CLI and Crush expose a session id only to *hooks*, not to ordinary subprocesses, so no id is available there.
+
+### Trace context
+
+When the agent runs under [OpenTelemetry tracing](https://www.w3.org/TR/trace-context/), it may publish a `TRACEPARENT` to its subprocesses. `Agent::traceparent` exposes the raw W3C value (forward it as a `traceparent` header to keep downstream requests on the same distributed trace), and `Agent::trace_id()` extracts just the 32-hex trace-id correlation key.
+
+`TRACEPARENT` is a standard var name, so it's read directly rather than per agent. Among the agents here, **Claude Code** and **Qwen Code** propagate it — both gated behind telemetry being enabled, and off by default (Claude Code additionally requires `CLAUDE_CODE_PROPAGATE_TRACEPARENT`; Qwen Code requires `outboundCorrelation.propagateTraceContext`). For other agents a `traceparent` appears only if one was already present in the ambient shell and inherited.
 
 For tests or callers that want to consult a captured environment instead of the live process, use `detect_with`:
 
