@@ -8,7 +8,7 @@ Inspired by the [`AGENT` environment variable proposal](https://github.com/agent
 
 ```toml
 [dependencies]
-is-ai-agent = "0.4"
+is-ai-agent = "0.5"
 ```
 
 ## Usage
@@ -43,14 +43,18 @@ The value is opaque and only comparable *within the same agent* — pair it with
 
 | Agent | Source env var | Notes |
 |---|---|---|
-| Claude Code | `CLAUDE_CODE_SESSION_ID` | Per-conversation UUID; shared by sub-agents and all spawned subprocesses. |
+| Claude Code / Claude Cowork | `CLAUDE_CODE_SESSION_ID` | Per-conversation UUID; shared by sub-agents and all spawned subprocesses. |
+| CodeBuddy | `CODEBUDDY_SESSION_ID`, then `CLAUDE_SESSION_ID` | Dual-written to a `CLAUDE_*` mirror. |
 | OpenAI Codex | `CODEX_THREAD_ID` | |
 | Amp | `AMP_CURRENT_THREAD_ID`, then `AGENT_THREAD_ID` | |
 | Qwen Code | `QWEN_CODE_SESSION_ID` | |
 | Cursor / Cursor CLI | `CURSOR_TRACE_ID` | Trace id; per-session vs per-command scope is undocumented, so correlation may fragment. |
-| GitHub Copilot | `COPILOT_AGENT_SESSION_ID` | |
+| GitHub Copilot | `COPILOT_AGENT_SESSION_ID`, then `COPILOT_AGENT_JOB_ID` | Job id is set by the Actions-based cloud coding agent. |
+| Warp | `OZ_RUN_ID` | Run id; scope undocumented, so correlation may fragment. |
+| Cline | `CLINE_TASK_ID` | |
+| Roo Code | `ROO_CODE_TASK_ID` | |
 
-Gemini CLI and Crush expose a session id only to *hooks*, not to ordinary subprocesses, so no id is available there.
+Gemini CLI, Crush, and Grok CLI expose a session id only to *hooks*, not to ordinary subprocesses, so no id is available there.
 
 ### Trace context
 
@@ -71,33 +75,43 @@ let agent = detect_with(
 
 ## Detection order
 
-1. The generic `AGENT` (the [agents.md proposal](https://github.com/agentsmd/agents.md/issues/136)) and `AI_AGENT` ([@vercel/detect-agent](https://www.npmjs.com/package/@vercel/detect-agent)) env vars, when their value names a known agent (`goose`, `amp`, `claude-code`, `cursor`, `cursor-cli`, `gemini-cli`, `codex`, `augment`, `cline`, `opencode`, `trae`, `devin`, `replit`, `antigravity`, `github-copilot`, `crush`, `qwen-code`, `iflow-cli`, `amazon-q-cli`, `roo-code`). Version suffixes are stripped before matching, so `AI_AGENT=goose@1.2.3` and `AI_AGENT=claude-code_2.1.0_cli` both classify.
+1. The generic `AGENT` (the [agents.md proposal](https://github.com/agentsmd/agents.md/issues/136)) and `AI_AGENT` ([@vercel/detect-agent](https://www.npmjs.com/package/@vercel/detect-agent)) env vars, when their value names a known agent (`goose`, `amp`, `claude-code`, `cowork`, `cursor`, `cursor-cli`, `gemini-cli`, `codex`, `augment`, `cline`, `opencode`, `trae`, `devin`, `replit`, `antigravity`, `github-copilot`, `crush`, `qwen-code`, `iflow-cli`, `amazon-q-cli`, `roo-code`, `codebuddy`, `grok-cli`, `warp`, `pi`, `kiro`, `firebender`, `openhands`, `vecli`, `v0`). The whole value is matched first (VS Code's Copilot agent mode sets `AI_AGENT=github_copilot_vscode_agent`), then version suffixes are stripped, so `AI_AGENT=goose@1.2.3`, `AI_AGENT=v0@1.2.3`, and `AI_AGENT=claude-code_2-1-201_agent` all classify.
 2. Tool-specific env vars:
 
    | Variable | Agent |
    |---|---|
    | `CLAUDECODE`, `CLAUDE_CODE_ENTRYPOINT`, `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_EXECPATH` | Claude Code |
+   | `CLAUDE_CODE_IS_COWORK` (refines any Claude Code identification when present) | Claude Cowork |
+   | `CODEBUDDY`, `CODEBUDDY_SESSION_ID`, `CODEBUDDY_PROJECT_DIR` (checked before Claude Code — CodeBuddy mirrors some `CLAUDE_*` vars) | CodeBuddy |
    | `CURSOR_AGENT` (set by both the CLI and the IDE's agent terminals) | Cursor |
    | `CURSOR_TRACE_ID` *and* `PAGER=head -n 10000 \| cat` (older builds; the PAGER override distinguishes agent mode from a human in Cursor's terminal) | Cursor |
    | `CURSOR_SANDBOX`, `CURSOR_EXTENSION_HOST_ROLE=agent-exec` | Cursor CLI |
    | `GEMINI_CLI` | Gemini CLI |
    | `QWEN_CODE` | Qwen Code |
+   | `VECLI_SANDBOX`, `VECLI_DIR` (checked before `GEMINI_CLI` — veCLI is a Gemini CLI fork) | veCLI |
    | `CODEX_THREAD_ID`, `CODEX_SANDBOX`, `CODEX_SANDBOX_NETWORK_DISABLED`, `CODEX_CI` | OpenAI Codex |
-   | `ANTIGRAVITY_AGENT` | Antigravity |
+   | `ANTIGRAVITY_AGENT`, `ANTIGRAVITY_PROJECT_ID` | Antigravity |
    | `AUGMENT_AGENT` | Augment |
-   | `CLINE_ACTIVE` | Cline |
-   | `ROO_ACTIVE` | Roo Code |
+   | `CLINE_ACTIVE`, `CLINE_TASK_ID` | Cline |
+   | `ROO_CODE_TASK_ID` | Roo Code |
    | `CRUSH` | Crush |
    | `IFLOW_CLI` | iFlow CLI |
-   | `OPENCODE`, `OPENCODE_PID`, `OPENCODE_CLIENT` | OpenCode |
+   | `GROK_AGENT` | Grok CLI |
+   | `OZ_RUN_ID` | Warp |
+   | `PI_CODING_AGENT` | Pi |
+   | `KIRO_AGENT_PATH` | Kiro |
+   | `AGENT_CONTEXT_OUT` *and* `AGENT_DISPLAY_OUT` (the Kiro CLI exports this FIFO pair only while its agent drives the command; either alone is too generic) | Kiro |
+   | `FIREBENDER_TERMINAL` | Firebender |
+   | `PS1` or `PROMPT_COMMAND` containing `###PS1JSON###` | OpenHands |
+   | `OPENCODE`, `OPENCODE_PID`, `OPENCODE_BIN_PATH`, `OPENCODE_SERVER`, `OPENCODE_APP_INFO`, `OPENCODE_MODES`, `OPENCODE_CLIENT` | OpenCode |
    | `TRAE_AI_SHELL_ID` | TRAE AI |
    | `GOOSE_TERMINAL` | Goose |
    | `REPL_ID` | Replit |
    | `AMP_CURRENT_THREAD_ID` | Amp |
-   | `COPILOT_AGENT_SESSION_ID`, `COPILOT_MODEL`, `COPILOT_ALLOW_ALL`, `COPILOT_GITHUB_TOKEN` | GitHub Copilot |
+   | `COPILOT_AGENT_SESSION_ID`, `COPILOT_AGENT`, `COPILOT_CLI`, `COPILOT_AGENT_JOB_ID`, `COPILOT_MODEL`, `COPILOT_ALLOW_ALL`, `COPILOT_GITHUB_TOKEN` | GitHub Copilot |
    | `AWS_EXECUTION_ENV` containing `AmazonQ-For-CLI` | Amazon Q Developer CLI |
 
-   Ordering disambiguates compatibility shims: Amp's marker is checked before `CLAUDECODE` (Amp sets it for compat), and `QWEN_CODE` before `GEMINI_CLI` (Qwen Code is a Gemini CLI fork).
+   Ordering disambiguates compatibility shims and forks: Amp's and CodeBuddy's markers are checked before `CLAUDECODE` (Amp sets it for compat; CodeBuddy mirrors `CLAUDE_*` vars), and `QWEN_CODE`/`VECLI_*` before `GEMINI_CLI` (both are Gemini CLI forks that inherit `GEMINI_CLI=1`).
 
 3. Filesystem signals:
 

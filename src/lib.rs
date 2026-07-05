@@ -38,8 +38,8 @@ pub struct Agent {
     /// is unified as "the identifier that correlates every tool invocation in
     /// one agent run". It is opaque and only comparable within the same agent
     /// — pair it with [`AgentId`] before correlating across surfaces. `None`
-    /// when the detected agent doesn't publish one (e.g. Gemini CLI and Crush
-    /// only expose it to hooks, not to ordinary subprocesses).
+    /// when the detected agent doesn't publish one (e.g. Gemini CLI, Crush,
+    /// and Grok CLI only expose it to hooks, not to ordinary subprocesses).
     pub session_id: Option<String>,
     /// The active [W3C Trace Context] `traceparent` value, when present in the
     /// environment — the raw header a subprocess can forward to keep
@@ -97,6 +97,20 @@ pub enum AgentId {
     IflowCli,
     AmazonQCli,
     RooCode,
+    /// Claude Code driven by Anthropic's Cowork desktop app.
+    Cowork,
+    /// Tencent CodeBuddy, a Claude Code derivative.
+    CodeBuddy,
+    GrokCli,
+    /// Warp's agent mode (internally "Oz").
+    Warp,
+    Pi,
+    Kiro,
+    Firebender,
+    OpenHands,
+    /// Volcengine veCLI, a Gemini CLI fork.
+    VeCli,
+    V0,
     Unknown,
 }
 
@@ -127,6 +141,16 @@ impl AgentId {
             AgentId::IflowCli => "iflow-cli",
             AgentId::AmazonQCli => "amazon-q-cli",
             AgentId::RooCode => "roo-code",
+            AgentId::Cowork => "cowork",
+            AgentId::CodeBuddy => "codebuddy",
+            AgentId::GrokCli => "grok-cli",
+            AgentId::Warp => "warp",
+            AgentId::Pi => "pi",
+            AgentId::Kiro => "kiro",
+            AgentId::Firebender => "firebender",
+            AgentId::OpenHands => "openhands",
+            AgentId::VeCli => "vecli",
+            AgentId::V0 => "v0",
             AgentId::Unknown => "unknown",
         }
     }
@@ -144,6 +168,12 @@ const TOOL_VARS: &[(&str, AgentId, &str)] = &[
     // Amp sets CLAUDECODE=1 for compatibility, so its own marker must be
     // checked before Claude Code's.
     ("AMP_CURRENT_THREAD_ID", AgentId::Amp, "Amp"),
+    // CodeBuddy is a Claude Code derivative that mirrors some CLAUDE_* vars
+    // (CLAUDE_SESSION_ID, CLAUDE_PROJECT_DIR), so it precedes Claude Code.
+    ("CODEBUDDY", AgentId::CodeBuddy, "CodeBuddy"),
+    ("CODEBUDDY_SESSION_ID", AgentId::CodeBuddy, "CodeBuddy"),
+    ("CODEBUDDY_PROJECT_DIR", AgentId::CodeBuddy, "CodeBuddy"),
+    ("CLAUDE_CODE_IS_COWORK", AgentId::Cowork, "Claude Cowork"),
     ("CLAUDECODE", AgentId::ClaudeCode, "Claude Code"),
     ("CLAUDE_CODE_ENTRYPOINT", AgentId::ClaudeCode, "Claude Code"),
     ("CLAUDE_CODE_SESSION_ID", AgentId::ClaudeCode, "Claude Code"),
@@ -152,8 +182,11 @@ const TOOL_VARS: &[(&str, AgentId, &str)] = &[
     // proves "some Cursor agent surface", not specifically the CLI.
     ("CURSOR_AGENT", AgentId::Cursor, "Cursor"),
     ("CURSOR_SANDBOX", AgentId::CursorCli, "Cursor CLI"),
-    // Qwen Code is a Gemini CLI fork; its marker must precede Gemini's.
+    // Qwen Code and veCLI are Gemini CLI forks (both inherit GEMINI_CLI=1);
+    // their own markers must precede Gemini's.
     ("QWEN_CODE", AgentId::QwenCode, "Qwen Code"),
+    ("VECLI_SANDBOX", AgentId::VeCli, "veCLI"),
+    ("VECLI_DIR", AgentId::VeCli, "veCLI"),
     ("GEMINI_CLI", AgentId::GeminiCli, "Gemini CLI"),
     ("CODEX_THREAD_ID", AgentId::Codex, "OpenAI Codex"),
     ("CODEX_SANDBOX", AgentId::Codex, "OpenAI Codex"),
@@ -164,13 +197,33 @@ const TOOL_VARS: &[(&str, AgentId, &str)] = &[
     ),
     ("CODEX_CI", AgentId::Codex, "OpenAI Codex"),
     ("ANTIGRAVITY_AGENT", AgentId::Antigravity, "Antigravity"),
+    (
+        "ANTIGRAVITY_PROJECT_ID",
+        AgentId::Antigravity,
+        "Antigravity",
+    ),
     ("AUGMENT_AGENT", AgentId::Augment, "Augment"),
     ("CLINE_ACTIVE", AgentId::Cline, "Cline"),
-    ("ROO_ACTIVE", AgentId::RooCode, "Roo Code"),
+    ("CLINE_TASK_ID", AgentId::Cline, "Cline"),
+    // Roo Code sets no dedicated marker in its own source; ROO_CODE_TASK_ID
+    // is the signal third-party detectors (dotnet SDK) key on.
+    ("ROO_CODE_TASK_ID", AgentId::RooCode, "Roo Code"),
     ("CRUSH", AgentId::Crush, "Crush"),
     ("IFLOW_CLI", AgentId::IflowCli, "iFlow CLI"),
+    ("GROK_AGENT", AgentId::GrokCli, "Grok CLI"),
+    ("OZ_RUN_ID", AgentId::Warp, "Warp"),
+    ("PI_CODING_AGENT", AgentId::Pi, "Pi"),
+    ("KIRO_AGENT_PATH", AgentId::Kiro, "Kiro"),
+    ("FIREBENDER_TERMINAL", AgentId::Firebender, "Firebender"),
+    // OpenCode's env markers may fail to propagate to spawned shells (it is
+    // Bun-compiled, and Bun doesn't forward runtime process.env mutations),
+    // hence the wide net.
     ("OPENCODE", AgentId::OpenCode, "OpenCode"),
     ("OPENCODE_PID", AgentId::OpenCode, "OpenCode"),
+    ("OPENCODE_BIN_PATH", AgentId::OpenCode, "OpenCode"),
+    ("OPENCODE_SERVER", AgentId::OpenCode, "OpenCode"),
+    ("OPENCODE_APP_INFO", AgentId::OpenCode, "OpenCode"),
+    ("OPENCODE_MODES", AgentId::OpenCode, "OpenCode"),
     // No longer set in plain CLI/TUI use (only acp/desktop embeddings).
     ("OPENCODE_CLIENT", AgentId::OpenCode, "OpenCode"),
     ("TRAE_AI_SHELL_ID", AgentId::Trae, "TRAE AI"),
@@ -178,6 +231,15 @@ const TOOL_VARS: &[(&str, AgentId, &str)] = &[
     ("REPL_ID", AgentId::Replit, "Replit"),
     (
         "COPILOT_AGENT_SESSION_ID",
+        AgentId::GitHubCopilot,
+        "GitHub Copilot",
+    ),
+    // VS Code Copilot agent-mode terminals (kept alongside AI_AGENT).
+    ("COPILOT_AGENT", AgentId::GitHubCopilot, "GitHub Copilot"),
+    // Copilot CLI and the Actions-based cloud coding agent.
+    ("COPILOT_CLI", AgentId::GitHubCopilot, "GitHub Copilot"),
+    (
+        "COPILOT_AGENT_JOB_ID",
         AgentId::GitHubCopilot,
         "GitHub Copilot",
     ),
@@ -202,6 +264,12 @@ const FILE_SIGNALS: &[(&str, AgentId, &str)] = &[("/opt/.devin", AgentId::Devin,
 /// an id to ordinary subprocesses appear here.
 const SESSION_ID_VARS: &[(AgentId, &[&str])] = &[
     (AgentId::ClaudeCode, &["CLAUDE_CODE_SESSION_ID"]),
+    (AgentId::Cowork, &["CLAUDE_CODE_SESSION_ID"]),
+    // CodeBuddy dual-writes its session id to a CLAUDE_* mirror.
+    (
+        AgentId::CodeBuddy,
+        &["CODEBUDDY_SESSION_ID", "CLAUDE_SESSION_ID"],
+    ),
     (AgentId::Codex, &["CODEX_THREAD_ID"]),
     // Amp sets both to the same thread id; AGENT_THREAD_ID is the fallback.
     (AgentId::Amp, &["AMP_CURRENT_THREAD_ID", "AGENT_THREAD_ID"]),
@@ -210,7 +278,15 @@ const SESSION_ID_VARS: &[(AgentId, &[&str])] = &[
     // undocumented, so callers correlating on it should expect possible churn.
     (AgentId::Cursor, &["CURSOR_TRACE_ID"]),
     (AgentId::CursorCli, &["CURSOR_TRACE_ID"]),
-    (AgentId::GitHubCopilot, &["COPILOT_AGENT_SESSION_ID"]),
+    (
+        AgentId::GitHubCopilot,
+        &["COPILOT_AGENT_SESSION_ID", "COPILOT_AGENT_JOB_ID"],
+    ),
+    // Warp exposes only a run id; like Cursor's trace id, its scope is
+    // undocumented, so correlation may fragment.
+    (AgentId::Warp, &["OZ_RUN_ID"]),
+    (AgentId::Cline, &["CLINE_TASK_ID"]),
+    (AgentId::RooCode, &["ROO_CODE_TASK_ID"]),
 ];
 
 /// Returns `true` if any AI agent signal is present.
@@ -234,12 +310,24 @@ where
     // trace context from the same environment so every construction site stays
     // consistent. `traceparent` is a standard var name (not agent-specific),
     // so it is read directly rather than via a per-agent table.
-    let make = |id: AgentId, name: &'static str, signal: Signal| Agent {
-        id,
-        name,
-        signal,
-        session_id: session_id_for(id, &env),
-        traceparent: nonempty(env("TRACEPARENT")),
+    let make = |id: AgentId, name: &'static str, signal: Signal| {
+        // Claude Code driven by the Cowork desktop app identifies as plain
+        // Claude Code through every other signal (CLAUDECODE, AI_AGENT), so
+        // any Claude Code identification is refined when the Cowork marker
+        // is present.
+        let (id, name) =
+            if id == AgentId::ClaudeCode && nonempty(env("CLAUDE_CODE_IS_COWORK")).is_some() {
+                (AgentId::Cowork, "Claude Cowork")
+            } else {
+                (id, name)
+            };
+        Agent {
+            id,
+            name,
+            signal,
+            session_id: session_id_for(id, &env),
+            traceparent: nonempty(env("TRACEPARENT")),
+        }
     };
 
     // Generic vars win outright when they name a known agent. A bare truthy
@@ -249,7 +337,7 @@ where
     let mut generic_fallback = None;
     for var in ["AGENT", "AI_AGENT"] {
         if let Some(value) = nonempty(env(var)) {
-            let (id, name) = classify_agent_value(agent_name_part(&value));
+            let (id, name) = classify_generic_value(&value);
             let agent = make(id, name, Signal::EnvVar { name: var, value });
             if id != AgentId::Unknown {
                 return Some(agent);
@@ -308,6 +396,37 @@ where
         ));
     }
 
+    // Special-cased combination match: Kiro CLI exports a pair of
+    // un-namespaced FIFO paths only while its agent is driving the command;
+    // either alone is too generic to count.
+    if let Some(value) = nonempty(env("AGENT_CONTEXT_OUT"))
+        && nonempty(env("AGENT_DISPLAY_OUT")).is_some()
+    {
+        return Some(make(
+            AgentId::Kiro,
+            "Kiro",
+            Signal::EnvVar {
+                name: "AGENT_CONTEXT_OUT",
+                value,
+            },
+        ));
+    }
+
+    // Special-cased substring match: OpenHands wraps every terminal prompt
+    // in a JSON metadata block whose literal markers ride along in the
+    // exported prompt vars.
+    for var in ["PS1", "PROMPT_COMMAND"] {
+        if let Some(value) = nonempty(env(var))
+            && value.contains("###PS1JSON###")
+        {
+            return Some(make(
+                AgentId::OpenHands,
+                "OpenHands",
+                Signal::EnvVar { name: var, value },
+            ));
+        }
+    }
+
     for &(var, id, name) in TOOL_VARS {
         if let Some(value) = nonempty(env(var)) {
             return Some(make(id, name, Signal::EnvVar { name: var, value }));
@@ -340,6 +459,17 @@ fn nonempty(v: Option<String>) -> Option<String> {
     v.filter(|s| !s.is_empty())
 }
 
+/// Classify a generic `AGENT`/`AI_AGENT` value. The whole value is tried
+/// first because some vendors put separators inside the name itself (VS Code
+/// sets `AI_AGENT=github_copilot_vscode_agent`, which suffix-stripping would
+/// mangle into `github`); only then are version suffixes stripped.
+fn classify_generic_value(value: &str) -> (AgentId, &'static str) {
+    match classify_agent_value(value) {
+        (AgentId::Unknown, _) => classify_agent_value(agent_name_part(value)),
+        known => known,
+    }
+}
+
 /// Extract the agent name from a generic var value. Strips the version
 /// suffixes in the wild: `name@version` (Vercel's @vercel/detect-agent
 /// convention, e.g. `v0@1.2.3`) and `name_version_surface` (Claude Code's
@@ -366,12 +496,25 @@ fn classify_agent_value(value: &str) -> (AgentId, &'static str) {
         "devin" => (AgentId::Devin, "Devin"),
         "replit" => (AgentId::Replit, "Replit"),
         "antigravity" => (AgentId::Antigravity, "Antigravity"),
-        "github-copilot" | "github-copilot-cli" => (AgentId::GitHubCopilot, "GitHub Copilot"),
+        // VS Code's Copilot agent mode sets this whole string as the name.
+        "github-copilot" | "github-copilot-cli" | "github_copilot_vscode_agent" => {
+            (AgentId::GitHubCopilot, "GitHub Copilot")
+        }
         "crush" => (AgentId::Crush, "Crush"),
         "qwen" | "qwen-code" | "qwencode" => (AgentId::QwenCode, "Qwen Code"),
         "iflow" | "iflow-cli" => (AgentId::IflowCli, "iFlow CLI"),
         "amazonq" | "amazon-q" | "amazon-q-cli" => (AgentId::AmazonQCli, "Amazon Q Developer CLI"),
         "roo" | "roo-code" | "roocode" => (AgentId::RooCode, "Roo Code"),
+        "cowork" => (AgentId::Cowork, "Claude Cowork"),
+        "codebuddy" => (AgentId::CodeBuddy, "CodeBuddy"),
+        "grok" | "grok-cli" => (AgentId::GrokCli, "Grok CLI"),
+        "warp" | "oz" => (AgentId::Warp, "Warp"),
+        "pi" => (AgentId::Pi, "Pi"),
+        "kiro" | "kiro-cli" => (AgentId::Kiro, "Kiro"),
+        "firebender" => (AgentId::Firebender, "Firebender"),
+        "openhands" => (AgentId::OpenHands, "OpenHands"),
+        "vecli" => (AgentId::VeCli, "veCLI"),
+        "v0" => (AgentId::V0, "v0"),
         _ => (AgentId::Unknown, "AI agent"),
     }
 }
@@ -504,6 +647,134 @@ mod tests {
         // Vercel's @vercel/detect-agent shape: name@version.
         let env = env_from(&[("AI_AGENT", "goose@1.2.3")]);
         assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::Goose);
+
+        // Claude Code's live shape puts dashes in the version segment.
+        let env = env_from(&[("AI_AGENT", "claude-code_2-1-201_agent")]);
+        assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::ClaudeCode);
+    }
+
+    #[test]
+    fn vscode_copilot_underscore_name_classifies_whole() {
+        // VS Code sets a name with underscores *inside* it; suffix-stripping
+        // must not mangle it into "github".
+        let env = env_from(&[("AI_AGENT", "github_copilot_vscode_agent")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::GitHubCopilot);
+    }
+
+    #[test]
+    fn v0_classified_with_and_without_version() {
+        for val in ["v0", "v0@1.2.3"] {
+            let env = env_from(&[("AI_AGENT", val)]);
+            assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::V0);
+        }
+    }
+
+    #[test]
+    fn cowork_marker_refines_claude_code() {
+        // Via the tool var...
+        let env = env_from(&[("CLAUDECODE", "1"), ("CLAUDE_CODE_IS_COWORK", "1")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::Cowork);
+        assert_eq!(agent.name, "Claude Cowork");
+
+        // ...and via the generic var, which short-circuits before TOOL_VARS.
+        let env = env_from(&[
+            ("AI_AGENT", "claude-code_2-1-201_agent"),
+            ("CLAUDE_CODE_IS_COWORK", "1"),
+        ]);
+        assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::Cowork);
+    }
+
+    #[test]
+    fn cowork_marker_alone_detected() {
+        let env = env_from(&[("CLAUDE_CODE_IS_COWORK", "1")]);
+        assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::Cowork);
+    }
+
+    #[test]
+    fn cowork_shares_claude_code_session_id() {
+        let env = env_from(&[
+            ("CLAUDECODE", "1"),
+            ("CLAUDE_CODE_IS_COWORK", "1"),
+            ("CLAUDE_CODE_SESSION_ID", "s-1"),
+        ]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::Cowork);
+        assert_eq!(agent.session_id.as_deref(), Some("s-1"));
+    }
+
+    #[test]
+    fn codebuddy_detected_with_session_id() {
+        let env = env_from(&[("CODEBUDDY", "1"), ("CODEBUDDY_SESSION_ID", "cb-1")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::CodeBuddy);
+        assert_eq!(agent.session_id.as_deref(), Some("cb-1"));
+    }
+
+    #[test]
+    fn codebuddy_falls_back_to_claude_session_mirror() {
+        // CodeBuddy dual-writes CLAUDE_SESSION_ID (not CLAUDE_CODE_SESSION_ID).
+        let env = env_from(&[("CODEBUDDY", "1"), ("CLAUDE_SESSION_ID", "cb-2")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::CodeBuddy);
+        assert_eq!(agent.session_id.as_deref(), Some("cb-2"));
+    }
+
+    #[test]
+    fn vecli_marker_outranks_gemini_cli_var() {
+        // veCLI is a Gemini CLI fork and inherits GEMINI_CLI=1.
+        let env = env_from(&[("VECLI_DIR", "/x"), ("GEMINI_CLI", "1")]);
+        assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::VeCli);
+    }
+
+    #[test]
+    fn kiro_cli_detected_via_fifo_pair() {
+        let env = env_from(&[
+            ("AGENT_CONTEXT_OUT", "/tmp/a"),
+            ("AGENT_DISPLAY_OUT", "/tmp/b"),
+        ]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::Kiro);
+        assert_eq!(
+            agent.signal,
+            Signal::EnvVar {
+                name: "AGENT_CONTEXT_OUT",
+                value: "/tmp/a".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn kiro_fifo_var_alone_is_ignored() {
+        // The pair is required; either var alone is too generic.
+        for var in ["AGENT_CONTEXT_OUT", "AGENT_DISPLAY_OUT"] {
+            let env = env_from(&[(var, "/tmp/a")]);
+            assert!(detect_with(env, |_| false).is_none(), "var={var}");
+        }
+    }
+
+    #[test]
+    fn openhands_detected_via_prompt_marker() {
+        for var in ["PS1", "PROMPT_COMMAND"] {
+            let env = env_from(&[(var, "###PS1JSON###{\"pid\":1}###PS1END###")]);
+            let agent = detect_with(env, |_| false).unwrap();
+            assert_eq!(agent.id, AgentId::OpenHands, "var={var}");
+        }
+    }
+
+    #[test]
+    fn ordinary_prompt_vars_ignored() {
+        let env = env_from(&[("PS1", "\\u@\\h \\w $ "), ("PROMPT_COMMAND", "history -a")]);
+        assert!(detect_with(env, |_| false).is_none());
+    }
+
+    #[test]
+    fn warp_run_id_doubles_as_session_id() {
+        let env = env_from(&[("OZ_RUN_ID", "run-42")]);
+        let agent = detect_with(env, |_| false).unwrap();
+        assert_eq!(agent.id, AgentId::Warp);
+        assert_eq!(agent.session_id.as_deref(), Some("run-42"));
     }
 
     #[test]
@@ -557,19 +828,191 @@ mod tests {
         assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::QwenCode);
     }
 
+    /// Each fixture is the complete set of detection-relevant vars the agent
+    /// exports in the wild — including compat shims, inherited fork markers,
+    /// and mirrored vars — so any table reordering that breaks a real
+    /// environment fails here even if the per-var tests still pass.
+    #[test]
+    fn full_agent_environments_resolve_to_expected_identity() {
+        let cases: &[(&str, &[(&str, &str)], AgentId)] = &[
+            (
+                // Amp ships Claude Code compat plus the generic var.
+                "amp",
+                &[
+                    ("AGENT", "amp"),
+                    ("AGENT_THREAD_ID", "T-1"),
+                    ("AMP_CURRENT_THREAD_ID", "T-1"),
+                    ("CLAUDECODE", "1"),
+                ],
+                AgentId::Amp,
+            ),
+            (
+                // Crush is the only agent shipping both generic conventions.
+                "crush",
+                &[("CRUSH", "1"), ("AGENT", "crush"), ("AI_AGENT", "crush")],
+                AgentId::Crush,
+            ),
+            (
+                // OpenCode's bare truthy AGENT=1 must lose to its own markers.
+                "opencode",
+                &[("AGENT", "1"), ("OPENCODE", "1"), ("OPENCODE_PID", "123")],
+                AgentId::OpenCode,
+            ),
+            (
+                "goose",
+                &[("AGENT", "goose"), ("GOOSE_TERMINAL", "1")],
+                AgentId::Goose,
+            ),
+            (
+                "claude-code",
+                &[
+                    ("AI_AGENT", "claude-code_2-1-201_agent"),
+                    ("CLAUDECODE", "1"),
+                    ("CLAUDE_CODE_ENTRYPOINT", "cli"),
+                    ("CLAUDE_CODE_SESSION_ID", "s-1"),
+                ],
+                AgentId::ClaudeCode,
+            ),
+            (
+                // Cowork = the full Claude Code env plus its own marker.
+                "cowork",
+                &[
+                    ("AI_AGENT", "claude-code_2-1-201_agent"),
+                    ("CLAUDECODE", "1"),
+                    ("CLAUDE_CODE_ENTRYPOINT", "cli"),
+                    ("CLAUDE_CODE_SESSION_ID", "s-1"),
+                    ("CLAUDE_CODE_IS_COWORK", "1"),
+                ],
+                AgentId::Cowork,
+            ),
+            (
+                // CodeBuddy dual-writes CLAUDE_* mirrors alongside its own vars.
+                "codebuddy",
+                &[
+                    ("CODEBUDDY", "1"),
+                    ("CODEBUDDY_SESSION_ID", "cb-1"),
+                    ("CODEBUDDY_PROJECT_DIR", "/p"),
+                    ("CLAUDE_SESSION_ID", "cb-1"),
+                    ("CLAUDE_PROJECT_DIR", "/p"),
+                ],
+                AgentId::CodeBuddy,
+            ),
+            (
+                "qwen-code",
+                &[
+                    ("QWEN_CODE", "1"),
+                    ("GEMINI_CLI", "1"),
+                    ("QWEN_CODE_SESSION_ID", "q-1"),
+                ],
+                AgentId::QwenCode,
+            ),
+            (
+                "vecli",
+                &[("VECLI_DIR", "/x"), ("GEMINI_CLI", "1")],
+                AgentId::VeCli,
+            ),
+            (
+                "vscode-copilot",
+                &[
+                    ("AI_AGENT", "github_copilot_vscode_agent"),
+                    ("COPILOT_AGENT", "1"),
+                    ("TERM_PROGRAM", "vscode"),
+                    ("GIT_PAGER", "cat"),
+                ],
+                AgentId::GitHubCopilot,
+            ),
+            (
+                // The extension-host special case must outrank CURSOR_AGENT,
+                // which only proves "some Cursor agent surface".
+                "cursor-cli",
+                &[
+                    ("CURSOR_AGENT", "1"),
+                    ("CURSOR_EXTENSION_HOST_ROLE", "agent-exec"),
+                    ("CURSOR_TRACE_ID", "t-1"),
+                ],
+                AgentId::CursorCli,
+            ),
+            (
+                // Grok's hooks mirror CLAUDE_PROJECT_DIR as a compat alias.
+                "grok",
+                &[("GROK_AGENT", "1"), ("CLAUDE_PROJECT_DIR", "/p")],
+                AgentId::GrokCli,
+            ),
+        ];
+        for (label, vars, expected) in cases {
+            let env = env_from(vars);
+            let agent = detect_with(env, |_| false).unwrap();
+            assert_eq!(agent.id, *expected, "fixture={label}");
+        }
+    }
+
+    #[test]
+    fn cowork_refinement_does_not_hijack_other_agents() {
+        // Amp sets CLAUDECODE=1 for compat; a Cowork marker inherited from an
+        // outer session must not rewrite an Amp identification.
+        let env = env_from(&[
+            ("AMP_CURRENT_THREAD_ID", "t-1"),
+            ("CLAUDECODE", "1"),
+            ("CLAUDE_CODE_IS_COWORK", "1"),
+        ]);
+        assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::Amp);
+    }
+
+    #[test]
+    fn claude_mirror_vars_alone_do_not_trigger_claude_code() {
+        // CodeBuddy and Grok CLI write CLAUDE_SESSION_ID / CLAUDE_PROJECT_DIR
+        // as compat mirrors; those names must never become Claude Code
+        // detection signals or both agents would misclassify.
+        let env = env_from(&[("CLAUDE_SESSION_ID", "x"), ("CLAUDE_PROJECT_DIR", "/p")]);
+        assert!(detect_with(env, |_| false).is_none());
+    }
+
+    #[test]
+    fn truthy_agent_var_defers_to_special_cases() {
+        // The Kiro combo and OpenHands prompt marker are checked before the
+        // AGENT=1 fallback resolves to Unknown.
+        let env = env_from(&[
+            ("AGENT", "1"),
+            ("AGENT_CONTEXT_OUT", "/tmp/a"),
+            ("AGENT_DISPLAY_OUT", "/tmp/b"),
+        ]);
+        assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::Kiro);
+
+        let env = env_from(&[("AGENT", "1"), ("PS1", "###PS1JSON###{}###PS1END###")]);
+        assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::OpenHands);
+    }
+
     #[test]
     fn new_tool_vars_detected() {
         for (var, expected) in [
             ("CRUSH", AgentId::Crush),
             ("QWEN_CODE", AgentId::QwenCode),
             ("IFLOW_CLI", AgentId::IflowCli),
-            ("ROO_ACTIVE", AgentId::RooCode),
+            ("ROO_CODE_TASK_ID", AgentId::RooCode),
+            ("CLINE_TASK_ID", AgentId::Cline),
             ("OPENCODE", AgentId::OpenCode),
             ("OPENCODE_PID", AgentId::OpenCode),
+            ("OPENCODE_BIN_PATH", AgentId::OpenCode),
+            ("OPENCODE_SERVER", AgentId::OpenCode),
+            ("OPENCODE_APP_INFO", AgentId::OpenCode),
+            ("OPENCODE_MODES", AgentId::OpenCode),
             ("CURSOR_SANDBOX", AgentId::CursorCli),
             ("CODEX_SANDBOX_NETWORK_DISABLED", AgentId::Codex),
             ("AMP_CURRENT_THREAD_ID", AgentId::Amp),
             ("COPILOT_AGENT_SESSION_ID", AgentId::GitHubCopilot),
+            ("COPILOT_AGENT", AgentId::GitHubCopilot),
+            ("COPILOT_CLI", AgentId::GitHubCopilot),
+            ("COPILOT_AGENT_JOB_ID", AgentId::GitHubCopilot),
+            ("ANTIGRAVITY_PROJECT_ID", AgentId::Antigravity),
+            ("CODEBUDDY", AgentId::CodeBuddy),
+            ("CLAUDE_CODE_IS_COWORK", AgentId::Cowork),
+            ("GROK_AGENT", AgentId::GrokCli),
+            ("OZ_RUN_ID", AgentId::Warp),
+            ("PI_CODING_AGENT", AgentId::Pi),
+            ("KIRO_AGENT_PATH", AgentId::Kiro),
+            ("FIREBENDER_TERMINAL", AgentId::Firebender),
+            ("VECLI_DIR", AgentId::VeCli),
+            ("VECLI_SANDBOX", AgentId::VeCli),
         ] {
             let env = env_from(&[(var, "1")]);
             let agent = detect_with(env, |_| false).unwrap();
@@ -844,6 +1287,16 @@ mod tests {
             AgentId::IflowCli,
             AgentId::AmazonQCli,
             AgentId::RooCode,
+            AgentId::Cowork,
+            AgentId::CodeBuddy,
+            AgentId::GrokCli,
+            AgentId::Warp,
+            AgentId::Pi,
+            AgentId::Kiro,
+            AgentId::Firebender,
+            AgentId::OpenHands,
+            AgentId::VeCli,
+            AgentId::V0,
         ] {
             let slug = id.as_str();
             let env = env_from(&[("AGENT", slug)]);
@@ -869,6 +1322,15 @@ mod tests {
             ("iflow", AgentId::IflowCli),
             ("amazonq", AgentId::AmazonQCli),
             ("roo", AgentId::RooCode),
+            ("cowork", AgentId::Cowork),
+            ("codebuddy", AgentId::CodeBuddy),
+            ("grok", AgentId::GrokCli),
+            ("oz", AgentId::Warp),
+            ("kiro-cli", AgentId::Kiro),
+            ("firebender", AgentId::Firebender),
+            ("openhands", AgentId::OpenHands),
+            ("vecli", AgentId::VeCli),
+            ("v0", AgentId::V0),
         ] {
             let env = env_from(&[("AGENT", val)]);
             assert_eq!(
