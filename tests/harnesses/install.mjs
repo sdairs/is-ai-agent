@@ -29,7 +29,7 @@ if (pkg === "vtcode" || pkg === "hermes-agent") {
   const spec = JSON.parse(readFileSync("/opt/harnesses.json")).goose;
   const asset = spec.assets[process.arch];
   if (!asset || version !== spec.version) throw new Error("Unsupported Goose build");
-  const url = `https://github.com/aaif-goose/goose/releases/download/v${version}/goose-${asset.arch}-unknown-linux-musl.tar.gz`;
+  const url = asset.url ?? `https://github.com/aaif-goose/goose/releases/download/v${version}/goose-${asset.arch}-unknown-linux-musl.tar.gz`;
   const response = await fetch(url);
   if (!response.ok) throw new Error("Goose download failed");
   const data = Buffer.from(await response.arrayBuffer());
@@ -38,6 +38,11 @@ if (pkg === "vtcode" || pkg === "hermes-agent") {
   execFileSync("tar", ["xzf", "/tmp/goose.tar.gz", "-C", "/usr/local/bin"]);
   unlinkSync("/tmp/goose.tar.gz");
 } else {
+  const spec = Object.values(manifest).find(s => s.package === pkg && s.version === version);
+  if (spec?.npm_integrity) {
+    const integrity = JSON.parse(execFileSync("npm", ["view", `${pkg}@${version}`, "dist.integrity", "--json"], { encoding: "utf8" }));
+    if (integrity !== spec.npm_integrity) throw new Error("Resolved npm release integrity changed");
+  }
   execFileSync("npm", ["install", "--global", `${pkg}@${version}`], { stdio: "inherit" });
   execFileSync("npm", ["cache", "clean", "--force"], { stdio: "inherit" });
   if (pkg === "@jetbrains/junie") {

@@ -25,11 +25,12 @@ jobs:
         id: matrix
         run: |
           python3 - <<'PYTHON'
-          import json, os
+          import json, os, sys
+          sys.path.insert(0, "tests/harnesses")
+          import releases
           with open('tests/harnesses/harnesses.json') as source:
               harnesses = json.load(source)
-          matrix = {'include': [{'harness': name, 'expected_gap': bool(spec.get('known_gap'))}
-                                for name, spec in harnesses.items()]}
+          matrix = releases.matrix(harnesses)
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write('matrix=' + json.dumps(matrix) + '\n')
           PYTHON
@@ -49,7 +50,7 @@ jobs:
 
   harness:
     needs: checks
-    name: ${{ matrix.harness }} / Linux ${{ matrix.expected_gap && '(known detection gap)' || '' }}
+    name: ${{ matrix.harness }} @ ${{ matrix.version }} / Linux ${{ matrix.expected_gap && '(known detection gap)' || '' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
@@ -61,12 +62,12 @@ jobs:
           persist-credentials: false
       - name: Run real CLI against scripted provider
         # No secrets, private configuration, provider login, or live inference.
-        run: python3 tests/harnesses/run.py --harness '${{ matrix.harness }}' --mode mock --discover ${{ matrix.expected_gap && '--expect-undetected' || '' }}
+        run: python3 tests/harnesses/run.py --harness '${{ matrix.harness }}' --version '${{ matrix.version }}' --mode mock --discover ${{ matrix.expected_gap && '--expect-undetected' || '' }}
       - name: Upload sanitized evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: harness-${{ matrix.harness }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: harness-${{ matrix.harness }}-${{ matrix.version }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: target/harness-runs/${{ matrix.harness }}/**/*.json
           if-no-files-found: warn
           retention-days: 14

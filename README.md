@@ -151,6 +151,12 @@ environments with controls without exporting their values. Trial version pins
 and report comparisons make new releases and changed signals reviewable before
 updating the detector. See the test lab README for commands and coverage limits.
 
+PRs and releases test reviewed pins plus selected older compatibility versions.
+A separate [Saturday watcher](.github/workflows/harness-watch.yml) resolves the
+latest releases and compares fresh observations with each pin. It reports lost
+detection, newly detectable agents, new candidate variable names, and execution
+failures separately, retaining sanitized evidence for review.
+
 ## License
 
 Dual-licensed under MIT or Apache-2.0, at your option.

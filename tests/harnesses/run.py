@@ -11,6 +11,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
+import releases
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -68,12 +69,7 @@ def build_input(relative):
 
 
 def override_version(harness, version):
-    spec = HARNESS[harness]
-    if not re.fullmatch(r"\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?", version):
-        raise ValueError("Use an exact published version, not a tag or range")
-    if any(key in spec for key in ("assets", "source", "reported_version")):
-        raise ValueError("This adapter needs matching release metadata; update its manifest entry instead")
-    HARNESS[harness] = {**spec, "version": version}
+    HARNESS[harness] = releases.pinned_spec(HARNESS[harness], version)
 
 
 def docker(*args, check=True, timeout=180):
@@ -382,7 +378,7 @@ if __name__ == "__main__":
     parser.add_argument("--expect-undetected", action="store_true", help="Assert a documented missing-detection result; execution must still succeed")
     parser.add_argument("--skip-build", action="store_true", help="Use an already-built image for unchanged source")
     parser.add_argument("--discover", action="store_true", help="Compare configured and tool environments without exporting values (mock only)")
-    parser.add_argument("--version", help="Trial an exact npm release without changing the checked-in manifest")
+    parser.add_argument("--version", help="Select a reviewed version or trial an exact npm release without changing the manifest")
     args = parser.parse_args()
     if args.version:
         override_version(args.harness, args.version)

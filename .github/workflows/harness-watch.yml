@@ -1,0 +1,76 @@
+name: Upstream harness changes
+
+on:
+  schedule:
+    - cron: '17 8 * * 6' # Saturday 08:17 UTC; avoid the busy top of the hour
+  workflow_dispatch:
+    inputs:
+      harness:
+        description: Harness ID, or all
+        default: all
+        type: string
+      candidate:
+        description: latest, or an exact release for the selected harness
+        default: latest
+        type: string
+  # Exercise the watcher itself when its implementation changes. This is a
+  # separate advisory workflow; release publication uses the pinned suite.
+  pull_request:
+    paths:
+      - .github/workflows/harness-watch.yml
+      - tests/harnesses/watch.py
+      - tests/harnesses/releases.py
+      - tests/harnesses/compare.py
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - id: select
+        env:
+          SELECTED: ${{ inputs.harness || 'all' }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          harnesses = json.load(open('tests/harnesses/harnesses.json'))
+          selected = os.environ['SELECTED']
+          if selected != 'all' and selected not in harnesses:
+              raise SystemExit('Unknown harness ID')
+          names = list(harnesses) if selected == 'all' else [selected]
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('matrix=' + json.dumps({'harness': names}) + '\n')
+          PY
+  compare:
+    needs: matrix
+    name: Watch ${{ matrix.harness }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Compare fresh pinned and candidate executions
+        env:
+          HARNESS: ${{ matrix.harness }}
+          CANDIDATE: ${{ inputs.candidate || 'latest' }}
+          GH_TOKEN: ${{ github.token }} # public release metadata only; never passed into containers
+        run: python3 tests/harnesses/watch.py --harness "$HARNESS" --candidate "$CANDIDATE"
+      - name: Upload resolution and sanitized comparison evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: watch-${{ matrix.harness }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/harness-watch/${{ matrix.harness }}/
+          if-no-files-found: error
+          retention-days: 90

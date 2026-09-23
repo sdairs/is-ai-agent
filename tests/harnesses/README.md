@@ -9,7 +9,7 @@ GitHub-hosted Linux runners.
 | Harness | Pinned version | Real tool | Detection / session contract |
 | --- | --- | --- | --- |
 | Pi | 0.87.1 | `bash` | Detected; `PI_SESSION_ID` |
-| Qwen Code | 0.24.4 | `run_shell_command` | Detected; `QWEN_CODE_SESSION_ID` |
+| Qwen Code | 0.24.4, also 0.24.3 | `run_shell_command` | Detected; `QWEN_CODE_SESSION_ID` |
 | OpenCode | 1.18.32 | `bash` | Detected; no session ID asserted |
 | GitHub Copilot CLI | 1.0.88 | `bash` | Detected; `COPILOT_AGENT_SESSION_ID` |
 | Crush | 0.96.1 | `bash` | Detected; no session ID asserted |
@@ -145,7 +145,7 @@ adapter to an ordinary detection test.
 
 [Harness integration tests](../../.github/workflows/harness-tests.yml) runs on
 pull requests, pushes to `main`, and manual dispatch. A separate matrix job runs
-each harness, read directly from the manifest; one failure does not cancel the others. It also runs Rust tests,
+each pinned harness/version, read directly from the manifest; one failure does not cancel the others. It also runs Rust tests,
 formatting, Clippy, documentation generation, and the Python verifier/gateway tests.
 Every matrix job enables `--discover`, including its configured-environment
 negative control and Cline's non-agent command control.
@@ -160,6 +160,65 @@ even if a check fails. Reports distinguish `pass`, `fail` (a contract mismatch)
 and `error` (infrastructure/invalid evidence). The explicitly labelled discovery
 jobs can also report `known-gap`, as described above. Build failures remain visible
 in normal build logs. There is no blanket `continue-on-error` exemption.
+
+### Pinned regression checks and upstream monitoring
+
+Use three complementary sets of cases:
+
+| Check | Version selection | Purpose |
+| --- | --- | --- |
+| Every PR and release | Reviewed primary pin for every harness | Catch library or adapter regressions against known CLI behavior |
+| Every PR and release | Optional `compatibility_versions` per harness | Keep selected older releases working; Qwen 0.24.3 is the first extra case |
+| Weekly or manual | Fresh primary pin versus freshly resolved `latest` | Find upstream changes without changing the reviewed contracts |
+
+Latest-only checks move independently of a PR: a rerun might install a different
+CLI, and upstream changes can block an unrelated library release. Pins make the
+CLI versions repeatable and retain coverage for older users. They do not fully
+lock transitive installer dependencies; image and source fingerprints remain part
+of the evidence. Add older cases where there is a compatibility promise or an
+interesting change, rather than testing every published version.
+
+[Upstream harness changes](../../.github/workflows/harness-watch.yml) runs on
+Saturdays at 08:17 UTC, or manually with a harness ID (`all` by default) and
+candidate (`latest` by default). It also runs on PRs that change the watcher
+itself. This workflow is separate from the pinned release gate. Each harness job
+resolves the public release once, records exact versions and npm integrity or
+archive checksums, then runs **both** versions with the same library/probe and
+platform. It does not rewrite the manifest or silently accept new observations.
+
+For npm, `latest` means the publisher's `latest` tag, which can point to a release
+candidate. For GitHub binaries/source, it means GitHub's latest stable release;
+Hermes tags are resolved to immutable commits. Junie's npm version is mapped to
+the expected binary version separately. A missing asset, changed version scheme,
+or incompatible provider protocol is a resolution/execution problem, not evidence
+of a removed marker. The resolver can use an existing local `gh` login, or the
+workflow's read-only GitHub token, for public GitHub metadata. That credential is
+never passed into Docker builds or runtime containers.
+
+The job summary classifies the result:
+
+- `unchanged`: detection and redacted observations agree, including expected absence.
+- `detection_regression`: a previously detected identity disappears or changes.
+- `new_detection`: a known gap now produces an identity with the current library.
+- `new_candidates`: new nonblank environment names appear in the agent tool;
+  names also observed in the available non-agent control are excluded as candidates.
+- `contract_changed` / `observations_changed`: marker predicates, session checks,
+  control checks, or other redacted observations differ.
+- `baseline_failed`, `execution_failed`, or `resolution_or_evidence_error`:
+  the comparison could not establish the required execution evidence.
+
+Every delta or execution/resolution failure makes its watcher job fail so it is
+visible in Actions and normal GitHub workflow notifications. It does not open
+issues or modify code automatically. Per-harness artifacts retain resolved build
+metadata, both sanitized reports, the structured comparison and Markdown summary
+for 90 days. Investigate a candidate with source and non-agent controls before
+adding an identity rule. Raw values are never exported: an arbitrary value change
+under an existing name may go unnoticed until an explicit boolean predicate is
+added to the probe. A new name is a lead, not proof of an agent-only marker.
+
+The schedule starts only after this workflow reaches the default branch. GitHub
+may delay scheduled runs and disables schedules in inactive public repositories
+after 60 days; see [GitHub's schedule documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
 
 The runner writes `report.json`, `probe.json` and `control.json` under
 `target/harness-runs/<harness>/<run-id>/`, already ignored by Git. Reports include
@@ -222,6 +281,19 @@ The live route has not been tested against the private ClickHouse endpoint.
 
 ## Trial a version and compare observations
 
+To resolve and compare in one command (all CLI installation stays in Docker):
+
+```sh
+python3 tests/harnesses/watch.py --harness goose
+python3 tests/harnesses/watch.py --harness qwen-code --candidate 0.24.3
+```
+
+The watcher writes `target/harness-watch/<harness>/<run-id>/`. Its exit status is
+zero only for `unchanged`; other outcomes require review. Exact candidates are
+supported for npm packages, Goose and VTCode. Hermes uses `latest` here because
+its release tags differ from its package version; testing a specific historical
+Hermes release requires explicit source metadata in the manifest.
+
 For npm adapters without separate binary metadata, `--version` overrides the
 pin **only for that run**. It validates an exact version, builds that version,
 checks the CLI's reported version and retains the existing signal contract.
@@ -241,9 +313,14 @@ is a research lead, not an automatically accepted rule. Older probe schemas can
 produce an expected diff when newly collected boolean fields appear.
 
 After review, update the pin in `harnesses.json` and open a PR; the full CI matrix
-checks it again. Goose/VTCode release assets, Hermes source snapshots and Junie's
-separate binary version require explicit matching manifest metadata/checksums.
-`--version` refuses these rather than silently testing a different binary.
+checks it again. To retain an older release in that matrix, add an override to its
+`compatibility_versions` array, for example `{"version": "0.24.3"}`. Overrides
+inherit the primary detection contract but can declare their own expectations
+when historical behavior differs. Goose/VTCode release assets, Hermes source
+snapshots and Junie's separate binary version require explicit matching metadata
+in each compatibility override. `run.py --version` accepts the primary pin and
+reviewed compatibility entries, and refuses unlisted versions needing that extra
+metadata. The watcher can resolve the metadata for a prospective bump.
 Dependencies downloaded by package installers are not a complete hermetic lock;
 reports retain image/source fingerprints for that reason.
 

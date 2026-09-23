@@ -26,7 +26,7 @@ class VersionWorkflowTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     run.override_version("qwen-code", version)
             with self.assertRaises(ValueError):
-                run.override_version("goose", "1.52.0")
+                run.override_version("goose", "9999.0.0")
 
     def test_comparison_requires_execution_and_reports_only_redacted_drift(self):
         record = {"harness": "qwen-code", "platform": "linux/amd64", "stage": "complete",

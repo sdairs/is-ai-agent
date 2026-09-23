@@ -19,7 +19,12 @@
       "QWEN_CODE",
       "QWEN_CODE_SESSION_ID"
     ],
-    "session_var": "QWEN_CODE_SESSION_ID"
+    "session_var": "QWEN_CODE_SESSION_ID",
+    "compatibility_versions": [
+      {
+        "version": "0.24.3"
+      }
+    ]
   },
   "opencode": {
     "package": "opencode-ai",
