@@ -6,6 +6,14 @@ the probe command: no model, vendor account or real inference credential is need
 Use the resulting inventory to research identification signals; detector changes
 belong in separate PRs.
 
+Replay the current inventory through `detect_with`, without Docker or launching
+harnesses, with `python3 tests/harnesses/audit_detection.py`. Add `--revision REV`
+to compare a local Git revision's detector against the same capture. The replay
+preserves captured values and excludes ambient environment and filesystem signals.
+It reports observations without requiring every harness to have a detection rule.
+`session_matches` lists variables whose values equal the returned session ID;
+equal root/thread values do not prove which variable supplied the result.
+
 The [structured inventory](inventory/observed.json) is **harness → variable → value**.
 It includes inherited settings, empty strings, dummy API keys, paths and generated
 session IDs. Values are not redacted or normalized. The Markdown reference sheet
