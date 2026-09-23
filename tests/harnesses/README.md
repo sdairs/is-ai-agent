@@ -45,7 +45,8 @@ python3 tests/harnesses/run.py --harness claude-code
 Choose any harness ID in the manifest. The first build downloads public images
 and a published npm package or checksum-verified release archive. Hermes uses its
 supported editable installation from an immutable, checksum-verified source snapshot. Subsequent
-builds reuse Docker's cache. `--skip-build` reuses an existing image only when its
+builds reuse Docker's cache. VTCode uses its official static musl archive on
+x86 Linux: its GNU archive needs glibc 2.39, newer than the test base image. `--skip-build` reuses an existing image only when its
 build-input fingerprint still matches. No harness is installed on the host.
 
 ## What is actually tested

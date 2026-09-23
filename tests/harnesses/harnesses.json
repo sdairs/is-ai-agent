@@ -199,8 +199,8 @@
         "sha256": "6341f9651b07df620fa161862dfaa3ae21a555d9279a2c01fa3f55a3819bf56b"
       },
       "x64": {
-        "url": "https://github.com/vinhnx/VTCode/releases/download/0.169.1/vtcode-0.169.1-x86_64-unknown-linux-gnu.tar.gz",
-        "sha256": "23181b8888860a292b2dd51b228280bdab7cb4df4a9fa5ca255fd1976b43974c"
+        "url": "https://github.com/vinhnx/VTCode/releases/download/0.169.1/vtcode-0.169.1-x86_64-unknown-linux-musl.tar.gz",
+        "sha256": "a2a3d2dbf20e1d925decd36cd6aad56c7341f8fc4fbff2d1eed9bf4db740b6d8"
       }
     }
   }
