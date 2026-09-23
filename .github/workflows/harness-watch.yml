@@ -14,7 +14,7 @@ on:
         default: latest
         type: string
   # Exercise the watcher itself when its implementation changes. This is a
-  # separate advisory workflow; release publication uses the pinned suite.
+  # separate research workflow; environment changes do not fail collection.
   pull_request:
     paths:
       - .github/workflows/harness-watch.yml
@@ -26,7 +26,7 @@ on:
       - tests/harnesses/inventory.py
       - tests/harnesses/publish_inventory.py
       - tests/harnesses/test_inventory.py
-      - examples/probe.rs
+      - tests/harnesses/probe.rs
 
 permissions:
   contents: read
@@ -119,13 +119,12 @@ jobs:
           github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
           (inputs.harness == '' || inputs.harness == 'all') &&
           (inputs.candidate == '' || inputs.candidate == 'latest') }}
-    name: Propose inventory update and report meaningful changes
+    name: Propose inventory update
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: write
       pull-requests: write
-      issues: write
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -134,7 +133,7 @@ jobs:
         with:
           name: inventory-${{ github.run_id }}-${{ github.run_attempt }}
           path: target/proposed-inventory
-      - name: Update only the inventory proposal and deduplicated observation issue
+      - name: Update only the inventory proposal
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 tests/harnesses/publish_inventory.py --artifacts target/proposed-inventory

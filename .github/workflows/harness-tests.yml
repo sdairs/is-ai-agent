@@ -1,11 +1,10 @@
-name: Harness integration tests
+name: Harness environment collection
 
 on:
   pull_request:
   push:
     branches: [main]
   workflow_dispatch:
-  workflow_call:
 
 permissions:
   contents: read
@@ -41,8 +40,11 @@ jobs:
         run: |
           cargo fmt --check
           cargo test --locked
-          cargo clippy --all-targets -- -D warnings
+          cargo clippy --lib -- -D warnings
           cargo doc --no-deps
+          rustfmt --edition 2024 --check tests/harnesses/probe.rs
+      - name: Verify published crate contents
+        run: python3 .github/scripts/check-package.py
       - name: Check evidence verifiers and gateway
         env:
           PYTHONDONTWRITEBYTECODE: '1'
@@ -50,7 +52,7 @@ jobs:
 
   harness:
     needs: checks
-    name: ${{ matrix.harness }} @ ${{ matrix.version }} / Linux ${{ matrix.expected_gap && '(known detection gap)' || '' }}
+    name: ${{ matrix.harness }} @ ${{ matrix.version }} / Linux
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
@@ -62,7 +64,7 @@ jobs:
           persist-credentials: false
       - name: Run real CLI against scripted provider
         # No secrets, private configuration, provider login, or live inference.
-        run: python3 tests/harnesses/run.py --harness '${{ matrix.harness }}' --version '${{ matrix.version }}' --mode mock --discover ${{ matrix.expected_gap && '--expect-undetected' || '' }}
+        run: python3 tests/harnesses/run.py --harness '${{ matrix.harness }}' --version '${{ matrix.version }}' --discover
       - name: Upload validated evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

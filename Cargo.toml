@@ -8,6 +8,18 @@ repository = "https://github.com/sdairs/is-ai-agent"
 homepage = "https://github.com/sdairs/is-ai-agent"
 documentation = "https://docs.rs/is-ai-agent"
 readme = "README.md"
+# Only library distribution files belong in the published crate. The harness
+# lab, its inventory, workflows and local research stay in this repository.
+include = [
+    "/Cargo.toml",
+    "/Cargo.lock",
+    "/src/**",
+    "/tests/detect.rs",
+    "/examples/detect.rs",
+    "/README.md",
+    "/LICENSE-MIT",
+    "/LICENSE-APACHE",
+]
 keywords = ["ai", "agent", "cli", "detect", "claude"]
 categories = ["command-line-interface", "development-tools"]
 

@@ -3,7 +3,10 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY examples ./examples
-RUN cargo build --locked --offline --release --example probe
+COPY tests/harnesses/probe.rs tests/harnesses/probe.rs
+# Register the lab-only probe in this disposable build, never in the crate.
+RUN printf '\n[[example]]\nname = "probe"\npath = "tests/harnesses/probe.rs"\n' >> Cargo.toml \
+    && cargo build --locked --offline --release --example probe
 
 FROM node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \

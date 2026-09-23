@@ -3,48 +3,25 @@
     "package": "@earendil-works/pi-coding-agent",
     "version": "0.87.1",
     "executable": "pi",
-    "tool": "bash",
-    "markers": [
-      "PI_CODING_AGENT",
-      "PI_SESSION_ID"
-    ],
-    "session_var": "PI_SESSION_ID"
+    "tool": "bash"
   },
   "qwen-code": {
     "package": "@qwen-code/qwen-code",
     "version": "0.24.4",
     "executable": "qwen",
-    "tool": "run_shell_command",
-    "markers": [
-      "QWEN_CODE",
-      "QWEN_CODE_SESSION_ID"
-    ],
-    "session_var": "QWEN_CODE_SESSION_ID",
-    "compatibility_versions": [
-      {
-        "version": "0.24.3"
-      }
-    ]
+    "tool": "run_shell_command"
   },
   "opencode": {
     "package": "opencode-ai",
     "version": "1.18.32",
     "executable": "opencode",
-    "tool": "bash",
-    "markers": [
-      "OPENCODE"
-    ],
-    "session_var": null
+    "tool": "bash"
   },
   "github-copilot": {
     "package": "@github/copilot",
     "version": "1.0.88",
     "executable": "copilot",
     "tool": "bash",
-    "markers": [
-      "COPILOT_CLI"
-    ],
-    "session_var": "COPILOT_AGENT_SESSION_ID",
     "evidence": "provider"
   },
   "crush": {
@@ -52,10 +29,6 @@
     "version": "0.96.1",
     "executable": "crush",
     "tool": "bash",
-    "markers": [
-      "CRUSH"
-    ],
-    "session_var": null,
     "evidence": "provider"
   },
   "goose": {
@@ -63,10 +36,6 @@
     "version": "1.52.0",
     "executable": "goose",
     "tool": "shell",
-    "markers": [
-      "GOOSE_TERMINAL"
-    ],
-    "session_var": null,
     "evidence": "provider",
     "assets": {
       "arm64": {
@@ -77,30 +46,20 @@
         "arch": "x86_64",
         "sha256": "fdc86653285a89f7dcad6e76736af1688ab2cde44661b089328b2fc40bb79f9f"
       }
-    },
-    "known_gap": "The pinned CLI executes the probe but supplies none of the expected identity markers."
+    }
   },
   "cline": {
     "package": "cline",
     "version": "3.0.64",
     "executable": "cline",
     "tool": "run_commands",
-    "markers": [
-      "CLINE_ACTIVE"
-    ],
-    "session_var": "CLINE_TASK_ID",
-    "evidence": "provider",
-    "known_gap": "The pinned CLI executes the probe but supplies none of the expected identity markers."
+    "evidence": "provider"
   },
   "codex": {
     "package": "@openai/codex",
     "version": "0.156.1",
     "executable": "codex",
     "tool": "exec_command",
-    "markers": [
-      "CODEX_THREAD_ID"
-    ],
-    "session_var": "CODEX_THREAD_ID",
     "evidence": "provider"
   },
   "claude-code": {
@@ -108,10 +67,6 @@
     "version": "2.1.280",
     "executable": "claude",
     "tool": "Bash",
-    "markers": [
-      "CLAUDECODE"
-    ],
-    "session_var": "CLAUDE_CODE_SESSION_ID",
     "evidence": "provider"
   },
   "gemini-cli": {
@@ -119,10 +74,6 @@
     "version": "0.60.0",
     "executable": "gemini",
     "tool": "run_shell_command",
-    "markers": [
-      "GEMINI_CLI"
-    ],
-    "session_var": null,
     "evidence": "provider"
   },
   "deepseek-harness": {
@@ -130,10 +81,6 @@
     "version": "0.1.5-rc.3",
     "executable": "dsh",
     "tool": "bash",
-    "markers": [
-      "DSH_SHELL"
-    ],
-    "session_var": "DSH_SESSION_ID",
     "evidence": "provider"
   },
   "kilo-code": {
@@ -141,10 +88,6 @@
     "version": "7.7.9",
     "executable": "kilo",
     "tool": "bash",
-    "markers": [
-      "KILO"
-    ],
-    "session_var": null,
     "evidence": "provider"
   },
   "openclaw": {
@@ -152,10 +95,6 @@
     "version": "2026.9.5",
     "executable": "openclaw",
     "tool": "exec",
-    "markers": [
-      "OPENCLAW_SHELL"
-    ],
-    "session_var": null,
     "evidence": "provider"
   },
   "junie": {
@@ -163,25 +102,14 @@
     "version": "3110.7.0",
     "executable": "junie",
     "tool": "bash",
-    "markers": [
-      "JUNIE_SHIM_PATH",
-      "MATTERHORN_SESSION_ID"
-    ],
-    "session_var": null,
     "evidence": "provider",
-    "reported_version": "26.9.7 (3110.7)",
-    "known_gap": "Real bash tool exports launcher/session candidates, but an agent-only identity rule is not yet validated.",
-    "known_gap_present_markers": true
+    "reported_version": "26.9.7 (3110.7)"
   },
   "hermes-agent": {
     "package": "hermes-agent",
     "version": "0.21.4",
     "executable": "hermes",
     "tool": "terminal",
-    "markers": [
-      "HERMES_AGENT"
-    ],
-    "session_var": "HERMES_SESSION_ID",
     "evidence": "provider",
     "source": {
       "url": "https://codeload.github.com/NousResearch/hermes-agent/tar.gz/d337b736aa1e8ebecfab043842d13e4a2d2f48a3",
@@ -193,10 +121,6 @@
     "version": "0.169.1",
     "executable": "vtcode",
     "tool": "exec_command",
-    "markers": [
-      "VTCODE"
-    ],
-    "session_var": null,
     "evidence": "provider",
     "assets": {
       "arm64": {

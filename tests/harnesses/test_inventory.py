@@ -144,6 +144,20 @@ class InventoryTests(unittest.TestCase):
             self.assertEqual(current, old)
             self.assertTrue(errors)
 
+    def test_failed_baseline_does_not_discard_verified_candidate(self):
+        old = document()
+        with tempfile.TemporaryDirectory() as directory:
+            artifacts = Path(directory)
+            candidate = report(nonce="b" * 32)
+            candidate["discovery"]["agent"]["environment"]["NEW_MARKER"] = {
+                "change": "added", "nonblank": True, "value": "new"}
+            folder = write_pair(artifacts, candidate)
+            (folder / "baseline.json").write_text(json.dumps({"status": "error", "stage": "build_or_run"}))
+            current, errors, runs = inventory.collect(old, artifacts, ["pi"], RUN_URL)
+            self.assertFalse(errors)
+            self.assertEqual(current["pi"]["NEW_MARKER"], "new")
+            self.assertEqual(runs["pi"]["outcome"], "baseline_failed")
+
     def test_rerun_uses_latest_attempt_without_version_churn_in_inventory(self):
         old = document()
         with tempfile.TemporaryDirectory() as directory:
@@ -210,39 +224,17 @@ class PublisherTests(unittest.TestCase):
         self.publish()
         writes = [c for c in self.api.calls if c[1] != "GET"]
         self.assertIn("pulls", [c[0] for c in writes])
-        self.assertIn("issues", [c[0] for c in writes])
+        self.assertFalse(any(c[0].startswith("issues") for c in self.api.calls))
         tree = next(c[2] for c in writes if c[0] == "git/trees")
         self.assertEqual({f["path"] for f in tree["tree"]}, publisher.PATHS)
         self.assertFalse(any("heads/main" in c[0] for c in writes))
 
-    def test_meaningful_change_opens_deduplicated_issue_and_never_reopens_acknowledged_issue(self):
-        self.new["pi"]["NEW_FLAG"] = "1"
-        self.publish()
-        issue = next(c[2] for c in self.api.calls if c[0] == "issues" and c[1] == "POST")
-        self.api.issues = [{"number": 8, "state": "closed", "user": {"login": "github-actions[bot]"}, "body": issue["body"]}]
-        self.api.calls.clear()
-        self.publish()
-        self.assertFalse([c for c in self.api.calls if c[0].startswith("issues") and c[1] != "GET"])
-
-    def test_detection_alert_without_inventory_change_opens_issue_only(self):
+    def test_detection_changes_and_failures_do_not_create_investigation_issues(self):
         self.runs["pi"]["outcome"] = "detection_regression"
         self.publish()
-        writes = [c for c in self.api.calls if c[1] != "GET"]
-        self.assertEqual([c[0] for c in writes], ["issues"])
-        self.assertIn("detection_regression", writes[0][2]["body"])
-
-    def test_failure_reports_issue_and_keeps_old_inventory_without_pr(self):
         self.publish({"pi": {"stage": "agent", "reason": "unverified_execution"}})
-        writes = [c[0] for c in self.api.calls if c[1] != "GET"]
-        self.assertEqual(writes, ["issues"])
-
-    def test_failure_in_a_different_version_is_not_silenced_by_old_closed_issue(self):
-        self.publish({"pi": {"stage": "agent", "reason": "unverified_execution", "version": "0.88.0"}})
-        old = next(c[2] for c in self.api.calls if c[0] == "issues" and c[1] == "POST")
-        self.api.issues = [{"number": 8, "state": "closed", "user": {"login": "github-actions[bot]"}, "body": old["body"]}]
-        self.api.calls.clear()
-        self.publish({"pi": {"stage": "agent", "reason": "unverified_execution", "version": "0.89.0"}})
-        self.assertTrue([c for c in self.api.calls if c[0] == "issues" and c[1] == "POST"])
+        self.assertFalse([c for c in self.api.calls if c[1] != "GET"])
+        self.assertFalse(any(c[0].startswith("issues") for c in self.api.calls))
 
     def test_stale_run_or_unrelated_branch_changes_cannot_be_overwritten(self):
         self.api.head = "f" * 40

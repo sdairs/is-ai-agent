@@ -1,29 +1,11 @@
 """Scripted Chat Completions, Responses, Messages and Gemini endpoints.
 
-Optional live Chat Completions: only this container sees the real endpoint and key. It never logs requests,
-headers, upstream error bodies, or credentials. No redirects are followed.
+This provider only requests the probe command; it never connects to a real model.
 """
 import json
-import os
 import re
 import threading
-import urllib.error
-import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
-
-MODE = os.environ.get("GATEWAY_MODE", "mock")
-BASE_URL = os.environ.get("INFERENCE_BASE_URL", "")
-MODEL = os.environ.get("INFERENCE_MODEL", "")
-TOKEN = Path("/run/secrets/inference_token").read_text().strip() if MODE == "live" else ""
-if MODE == "live" and (not TOKEN or "\n" in TOKEN or "\r" in TOKEN):
-    raise SystemExit("Invalid token file")
-
-
-class NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
 
 class Handler(BaseHTTPRequestHandler):
     count = 0
@@ -31,7 +13,7 @@ class Handler(BaseHTTPRequestHandler):
     evidence = {"calls": [], "results": [], "final_responses": 0}
 
     def do_GET(self):
-        if MODE != "mock" or self.path != "/evidence":
+        if self.path != "/evidence":
             return self.error(404)
         self.json_response(self.evidence)
 
@@ -68,43 +50,21 @@ class Handler(BaseHTTPRequestHandler):
             count = Handler.count
         path = self.path.split("?", 1)[0]
         allowed = path in ("/v1/chat/completions", "/v1/responses", "/v1/messages") or path.endswith(":streamGenerateContent") or path.endswith(":generateContent")
-        if not allowed or (MODE == "live" and path != "/v1/chat/completions") or count > 6:
+        if not allowed or count > 6:
             return self.error(429 if count > 6 else 404)
         try:
             size = int(self.headers.get("Content-Length", "0"))
             if not 0 < size <= 1024 * 1024:
                 return self.error(413)
             body = json.loads(self.rfile.read(size))
-            if MODE == "mock":
-                if path == "/v1/responses":
-                    return self.mock_responses(body)
-                if path == "/v1/messages":
-                    return self.anthropic(body)
-                if ":" in path:
-                    return self.gemini(body)
-                return self.mock(body)
-            body["model"] = MODEL
-            # Bound generation independently of harness configuration.
-            body.pop("max_completion_tokens", None)
-            body["max_tokens"] = min(int(body.get("max_tokens", 2048)), 2048)
-            request = urllib.request.Request(
-                BASE_URL.rstrip("/") + "/chat/completions",
-                json.dumps(body).encode(),
-                {"Authorization": "Bearer " + TOKEN, "Content-Type": "application/json"},
-            )
-            with urllib.request.build_opener(NoRedirect).open(request, timeout=60) as response:
-                self.send_response(200)
-                self.send_header("Content-Type", response.headers.get("Content-Type", "text/event-stream"))
-                self.end_headers()
-                total = 0
-                while line := response.readline(1024 * 1024):
-                    total += len(line)
-                    if total > 8 * 1024 * 1024:
-                        break
-                    self.wfile.write(line.replace(TOKEN.encode(), b"[REDACTED]"))
-                    self.wfile.flush()
-        except (ValueError, KeyError, TypeError, OSError, urllib.error.URLError):
-            # Do not expose exception text: an upstream error may echo headers.
+            if path == "/v1/responses":
+                return self.mock_responses(body)
+            if path == "/v1/messages":
+                return self.anthropic(body)
+            if ":" in path:
+                return self.gemini(body)
+            return self.mock(body)
+        except (ValueError, KeyError, TypeError, OSError):
             self.close_connection = True
 
     def mock(self, body):

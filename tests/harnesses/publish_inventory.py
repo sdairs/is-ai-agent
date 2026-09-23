@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Publish generated inventory proposals from trusted default-branch runs only."""
 import argparse
-import hashlib
 import json
 import os
 import re
@@ -15,7 +14,7 @@ import run
 
 BRANCH = "codex/harness-inventory"
 MARKER = "<!-- is-ai-agent:harness-inventory -->"
-PATHS = {str(inventory.DATA), str(inventory.DOCUMENT)}
+PATHS = {str(inventory.DATA)}
 
 
 class GitHub:
@@ -24,18 +23,15 @@ class GitHub:
             raise ValueError("Invalid repository")
         self.prefix = "repos/" + repository + "/"
 
-    def call(self, path, method="GET", payload=None, paginate=False):
+    def call(self, path, method="GET", payload=None):
         command = ["gh", "api", self.prefix + path, "--method", method]
         if payload is not None:
             command += ["--input", "-"]
-        if paginate:
-            command += ["--paginate", "--slurp"]
         response = subprocess.run(command, input=json.dumps(payload) if payload is not None else None,
                                   capture_output=True, text=True, timeout=60)
         if response.returncode:
             raise RuntimeError("GitHub inventory publication request failed; no response body retained")
-        value = json.loads(response.stdout)
-        return [item for page in value for item in page] if paginate else value
+        return json.loads(response.stdout)
 
 
 def validate_errors(errors):
@@ -63,7 +59,6 @@ def publish(api, old, new, errors, runs, *, default_branch, tested_sha, run_url)
         elif name not in new or name not in runs:
             raise ValueError("Missing harness or run without a reported failure")
     changes = inventory.difference(old, new)
-    alerts = {name: result for name, result in runs.items() if result["outcome"] != "unchanged"}
     # Prevent a stale weekly result from proposing updates against newer code.
     base = api.call("git/ref/heads/" + quote(default_branch, safe=""))["object"]["sha"]
     if base != tested_sha:
@@ -82,8 +77,7 @@ def publish(api, old, new, errors, runs, *, default_branch, tested_sha, run_url)
             if any(f["filename"] not in PATHS for f in comparison.get("files", [])):
                 raise ValueError("Inventory branch contains changes outside generated files")
         tree = api.call("git/commits/" + base)["tree"]["sha"]
-        content = {str(inventory.DATA): json.dumps(new, indent=2, sort_keys=True) + "\n",
-                   str(inventory.DOCUMENT): inventory.render(new)}
+        content = {str(inventory.DATA): json.dumps(new, indent=2, sort_keys=True) + "\n"}
         tree = api.call("git/trees", "POST", {"base_tree": tree, "tree": [
             {"path": path, "mode": "100644", "type": "blob", "content": value} for path, value in content.items()]})["sha"]
         # Existing proposals are updated by a fast-forward merge commit. No
@@ -96,7 +90,7 @@ def publish(api, old, new, errors, runs, *, default_branch, tested_sha, run_url)
         else:
             api.call("git/refs", "POST", {"ref": "refs/heads/" + BRANCH, "sha": commit})
         body = MARKER + "\n\n" + inventory.report_markdown(changes, errors, run_url, runs)
-        body += "\nThis proposal changes only the generated inventory and reference sheet. Merging it records observations; it does not approve any detector rule.\n"
+        body += "\nThis proposal changes only the generated inventory. Merging it records observations; it does not approve any detector rule.\n"
         if prs:
             pr = api.call("pulls/" + str(prs[0]["number"]), "PATCH", {"body": body})
         else:
@@ -107,22 +101,7 @@ def publish(api, old, new, errors, runs, *, default_branch, tested_sha, run_url)
         # Latest observations returned to main's inventory while a proposal was
         # pending. Do not leave an obsolete inventory proposal open.
         api.call("pulls/" + str(prs[0]["number"]), "PATCH", {"state": "closed"})
-    if changes or alerts or errors:
-        digest = hashlib.sha256(json.dumps({"changes": changes, "errors": errors, "alerts": alerts}, sort_keys=True).encode()).hexdigest()
-        marker = "<!-- is-ai-agent:harness-delta:" + digest + " -->"
-        issues = api.call("issues?state=all&per_page=100", paginate=True)
-        existing = [issue for issue in issues if "pull_request" not in issue
-                    and issue["user"]["login"] == "github-actions[bot]" and marker in (issue.get("body") or "")]
-        body = marker + "\n\n" + inventory.report_markdown(changes, errors, run_url, runs)
-        if pr_url:
-            body += "\n[Inventory proposal](" + pr_url + ")\n"
-        if existing:
-            if existing[0]["state"] == "open":
-                api.call("issues/" + str(existing[0]["number"]), "PATCH", {"body": body})
-            # Closed issues are treated as acknowledged; never reopen weekly.
-        else:
-            api.call("issues", "POST", {"title": "Harness observations changed — review required", "body": body})
-    return {"changes": len(changes), "alerts": len(set(changes) | set(alerts) | set(errors)), "pull_request": pr_url}
+    return {"changes": len(changes), "unavailable": len(errors), "pull_request": pr_url}
 
 
 def main():

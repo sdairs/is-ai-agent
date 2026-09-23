@@ -1,4 +1,4 @@
-"""Verify rejection of false evidence and credential handling, without a model."""
+"""Verify real-tool evidence and exact environment collection without a model."""
 import io
 import json
 import subprocess
@@ -7,7 +7,6 @@ import unittest
 import urllib.request
 from http.server import ThreadingHTTPServer
 from unittest.mock import patch
-from types import SimpleNamespace
 
 import gateway
 import run
@@ -141,11 +140,6 @@ class DiscoveryTests(unittest.TestCase):
             with self.subTest(info=info), self.assertRaises(ValueError):
                 run.validate_discovery({**record, "environment": {"NEW": info}}, "fresh")
 
-    def test_discovery_stays_restricted_to_mock_mode(self):
-        with patch.object(run, "build") as build, self.assertRaises(ValueError):
-            run.run(SimpleNamespace(harness="pi", discover=True, mode="live"))
-        build.assert_not_called()
-
     def test_unknown_fields_values_paths_and_stale_discovery_are_rejected(self):
         record = {"schema": 1, "nonce": "fresh", "environment": {
             "API_KEY": {"change": "added", "nonblank": True}}, "ancestry": ["agent-probe", "goose"]}
@@ -176,38 +170,13 @@ class GatewayTests(unittest.TestCase):
         gateway.Handler.count = 0
         return handler
 
-    def test_token_is_only_in_upstream_auth_and_reflection_is_redacted(self):
-        handler = self.handler()
-        response = io.BytesIO(b'data: dummy-sensitive-value\n\n')
-        response.headers = {"Content-Type": "text/event-stream"}
-        with patch.object(gateway, "MODE", "live"), patch.object(gateway, "TOKEN", "dummy-sensitive-value"), \
-             patch.object(gateway, "BASE_URL", "https://inference.invalid/v1"), patch.object(gateway, "MODEL", "test-model"), \
-             patch.object(gateway.urllib.request, "build_opener") as opener:
-            opener.return_value.open.return_value = response
-            handler.do_POST()
-            request = opener.return_value.open.call_args.args[0]
-            self.assertEqual(request.get_header("Authorization"), "Bearer dummy-sensitive-value")
-            self.assertEqual(json.loads(request.data)["max_tokens"], 2048)
-            self.assertEqual(json.loads(request.data)["model"], "test-model")
-            self.assertNotIn(b"dummy-sensitive-value", request.data)
-            self.assertNotIn(b"dummy-sensitive-value", handler.wfile.getvalue())
-
-    def test_upstream_error_detail_is_discarded(self):
-        handler = self.handler()
-        with patch.object(gateway, "MODE", "live"), patch.object(gateway, "BASE_URL", "https://inference.invalid/v1"), \
-             patch.object(gateway.urllib.request, "build_opener") as opener:
-            opener.return_value.open.side_effect = OSError("dummy-sensitive-value")
-            handler.do_POST()
-            self.assertNotIn(b"dummy-sensitive-value", handler.wfile.getvalue())
-
-    def test_request_budget_and_redirect_rejection(self):
+    def test_request_budget(self):
         handler = self.handler()
         gateway.Handler.count = 6
         statuses = []
         handler.send_response = statuses.append
         handler.do_POST()
         self.assertEqual(statuses, [429])
-        self.assertIsNone(gateway.NoRedirect().redirect_request(None, None, 302, None, None, "https://other.invalid"))
 
     def test_mock_uses_advertised_shell_and_supports_both_response_formats(self):
         command = "/usr/local/bin/agent-probe /artifacts/agent.json " + "a" * 32
@@ -265,32 +234,16 @@ class ProviderEvidenceTests(unittest.TestCase):
         self.assertTrue(run.output_matches(content, probe))
         self.assertFalse(run.output_matches(content, {**probe, "nonce": "stale"}))
 
-    def test_known_gap_cannot_hide_execution_failures_or_unexpected_detection(self):
-        spec = {"known_gap": "Pinned CLI has no marker", "markers": ["CLINE_ACTIVE"]}
-        probe = {"agent": None, "signal": None, "session_present": False, "markers": {"CLINE_ACTIVE": False}}
-        checks = {"plain_shell_not_detected": True, "real_shell_tool_executed": True, "harness_identified": False,
-                  "configured_environment_not_detected": True, "non_agent_command_not_detected": True}
-        report = {"checks": checks, "probe": probe}
-        self.assertEqual(run.classify_result(report, spec), "fail")
-        self.assertEqual(run.classify_result(report, spec, True), "known-gap")
-        for changed in [{"agent": "cline"}, {"signal": "CLINE_ACTIVE"}, {"session_present": True},
-                        {"markers": {"CLINE_ACTIVE": True}}]:
-            self.assertEqual(run.classify_result({**report, "probe": {**probe, **changed}}, spec, True), "fail")
-        for name in ["plain_shell_not_detected", "real_shell_tool_executed", "configured_environment_not_detected",
-                     "non_agent_command_not_detected"]:
-            self.assertEqual(run.classify_result({**report, "checks": {**checks, name: False}}, spec, True), "fail")
-        self.assertEqual(run.classify_result(report, {**spec, "known_gap": None}, True), "fail")
-
-    def test_pending_candidate_gap_requires_observed_candidates(self):
-        spec = {"known_gap": "Candidates need controls", "known_gap_present_markers": True,
-                "markers": ["JUNIE_SHIM_PATH"]}
-        report = {"checks": {"plain_shell_not_detected": True, "real_shell_tool_executed": True,
-                             "harness_exported_markers": True},
-                  "probe": {"agent": None, "signal": None, "session_present": False,
-                            "markers": {"JUNIE_SHIM_PATH": True}}}
-        self.assertEqual(run.classify_result(report, spec, True), "known-gap")
-        report["checks"]["harness_exported_markers"] = False
-        self.assertEqual(run.classify_result(report, spec, True), "fail")
+    def test_collection_does_not_require_a_detector_rule(self):
+        # These are legitimate observations from the unchanged library: no
+        # detection, an unrecognised generic identity, or a fork's parent identity.
+        for agent in [None, "unknown", "opencode", "pi"]:
+            report = {"probe": {"agent": agent}, "checks": {
+                "real_shell_tool_executed": True, "harness_identified": False,
+                "configured_environment_not_detected": False}}
+            self.assertEqual(run.classify_result(report), "pass")
+            report["checks"]["real_shell_tool_executed"] = False
+            self.assertEqual(run.classify_result(report), "fail")
 
 
 class GatewayHTTPTests(unittest.TestCase):

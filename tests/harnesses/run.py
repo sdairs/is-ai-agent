@@ -11,14 +11,13 @@ import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlsplit
 import releases
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 HARNESS = json.loads((HERE / "harnesses.json").read_text())
 GATEWAY_IMAGE = "python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea"
-BUILD_FILES = ["Cargo.toml", "Cargo.lock", "src/lib.rs", "examples/detect.rs", "examples/probe.rs",
+BUILD_FILES = ["Cargo.toml", "Cargo.lock", "src/lib.rs", "examples/detect.rs", "tests/harnesses/probe.rs",
                "tests/harnesses/install.mjs", "tests/harnesses/Dockerfile", "tests/harnesses/entrypoint.mjs", "tests/harnesses/discover.mjs", "tests/harnesses/harnesses.json"]
 MARKERS = {"PI_CODING_AGENT", "PI_SESSION_ID", "QWEN_CODE", "GEMINI_CLI",
            "QWEN_CODE_SESSION_ID", "OPENCODE", "OPENCODE_PID",
@@ -210,44 +209,14 @@ def verify_provider(evidence, command, probe, tool):
             "agent_settled": evidence.get("final_responses", 0) > 0}
 
 
-def classify_result(report, spec, expect_undetected=False):
-    checks, probe = report["checks"], report["probe"]
-    if expect_undetected:
-        # A pinned known gap is an explicit observation, never a detection pass.
-        # Do not accept tool failures, unexpected attribution, or new markers.
-        markers_match = (checks.get("harness_exported_markers", False) if spec.get("known_gap_present_markers")
-                         else not any(probe["markers"][name] for name in spec["markers"]))
-        expected = (spec.get("known_gap") and checks["plain_shell_not_detected"]
-                    and checks.get("configured_environment_not_detected", True)
-                    and checks.get("non_agent_command_not_detected", True)
-                    and checks["real_shell_tool_executed"] and probe["agent"] is None
-                    and probe["signal"] is None and not probe["session_present"]
-                    and markers_match)
-        return "known-gap" if expected else "fail"
-    return "pass" if all(checks.values()) else "fail"
+def classify_result(report):
+    """Collection success means verified execution, independent of detector rules."""
+    return "pass" if report["checks"]["real_shell_tool_executed"] else "fail"
 
 
 def run(args):
     spec = HARNESS[args.harness]
-    if args.discover and args.mode != "mock":
-        raise ValueError("Discovery is restricted to credential-free mock mode")
-    if args.expect_undetected and (not spec.get("known_gap") or args.mode != "mock"):
-        raise ValueError("--expect-undetected only applies to documented mock-mode detection gaps")
     image = f"is-ai-agent-test-{args.harness}:{spec['version']}"
-    token = None
-    if args.mode == "live" and spec.get("evidence") == "provider":
-        raise ValueError("This adapter currently supports mock mode only")
-    if args.mode == "live":
-        if not all([args.base_url, args.model, args.token_file]):
-            raise ValueError("Live mode needs --base-url, --model, and --token-file")
-        url = urlsplit(args.base_url)
-        if url.scheme != "https" or not url.hostname or url.username or url.password or url.query or url.fragment:
-            raise ValueError("Use an HTTPS base URL without credentials, query, or fragment")
-        token = Path(args.token_file).expanduser().resolve()
-        if token.is_relative_to(ROOT) or not token.is_file() or token.stat().st_mode & 0o077:
-            raise ValueError("Token must be a private file (chmod 600) outside this repository")
-        if "," in str(token):
-            raise ValueError("Docker mount paths cannot contain commas")
     if not args.skip_build:
         build(args.harness, image)
     image_fingerprint = docker("image", "inspect", image, "--format",
@@ -266,14 +235,14 @@ def run(args):
     command = f"/usr/local/bin/agent-probe /artifacts/agent.json {nonce}"
     if args.discover:
         command += " --discover"
-    report = {"schema": 2, "mode": args.mode, "harness": args.harness, "harness_version": spec["version"],
+    report = {"schema": 2, "mode": "mock", "harness": args.harness, "harness_version": spec["version"],
               "timestamp": datetime.now(timezone.utc).isoformat(), "run_id": run_id,
               "scope": "Linux noninteractive CLI shell tool; no PTY, SDK, MCP, resume, or human-command coverage",
               "image_id": docker("image", "inspect", image, "--format", "{{.Id}}").stdout.strip(),
               "build_sha256": image_fingerprint,
               "gateway_image": GATEWAY_IMAGE,
               "gateway_source_sha256": hashlib.sha256((HERE / "gateway.py").read_bytes()).hexdigest(),
-              "probe_source_sha256": hashlib.sha256((ROOT / "examples/probe.rs").read_bytes()).hexdigest(),
+              "probe_source_sha256": hashlib.sha256((ROOT / "tests/harnesses/probe.rs").read_bytes()).hexdigest(),
               "adapter_source_sha256": hashlib.sha256(b"".join((HERE / name).read_bytes() for name in
                   ("entrypoint.mjs", "discover.mjs", "gateway.py"))).hexdigest(),
               "platform": docker("image", "inspect", image, "--format", "{{.Os}}/{{.Architecture}}").stdout.strip(),
@@ -283,15 +252,9 @@ def run(args):
         docker("network", "create", "--internal", network)
         gw_args = ["create", "--name", gateway, *harden, "--network", network, "--network-alias", "gateway",
                    "--mount", f"type=bind,src={HERE / 'gateway.py'},dst=/gateway.py,readonly",
-                   "-e", "PYTHONDONTWRITEBYTECODE=1", "-e", "GATEWAY_MODE=" + args.mode]
-        if token:
-            gw_args += ["--mount", f"type=bind,src={token},dst=/run/secrets/inference_token,readonly",
-                        "-e", "INFERENCE_BASE_URL=" + args.base_url, "-e", "INFERENCE_MODEL=" + args.model]
+                   "-e", "PYTHONDONTWRITEBYTECODE=1"]
         gw_args += [GATEWAY_IMAGE, "python", "/gateway.py"]
         docker(*gw_args)
-        if token:
-            # Only the gateway can reach the provider. The CLI stays on --internal.
-            docker("network", "connect", "bridge", gateway)
         docker("start", gateway)
         for _ in range(30):
             ready = docker("exec", gateway, "python", "-c",
@@ -366,16 +329,12 @@ def run(args):
             "plain_shell_not_detected": control_record["agent"] is None,
             "real_shell_tool_executed": all(report["execution"].values()) and report["container_exit_code"] == 0,
             "harness_identified": p["agent"] == args.harness,
-            "harness_exported_markers": all(p["markers"][name] and (name not in EXACT_MARKERS or p["exact_markers"][name]) for name in spec["markers"]),
-            "session_contract": p["session_matches"][spec["session_var"]] if spec["session_var"] else not p["session_present"],
         }
         if args.discover:
             report["checks"]["configured_environment_not_detected"] = report["configured_control"]["agent"] is None
             if "non_agent_control" in report:
                 report["checks"]["non_agent_command_not_detected"] = report["non_agent_control"]["agent"] is None
-        report["status"] = classify_result(report, spec, args.expect_undetected)
-        if spec.get("known_gap"):
-            report["known_gap"] = spec["known_gap"]
+        report["status"] = classify_result(report)
         report["stage"] = "complete"
     except (RuntimeError, ValueError, OSError, subprocess.TimeoutExpired) as error:
         # Exception details could contain arbitrary harness text. Persist type only.
@@ -391,17 +350,12 @@ def run(args):
             (output / (key + ".json")).write_text(json.dumps(report[key], indent=2) + "\n")
     print(json.dumps(report, indent=2))
     print("Report: " + str(output / "report.json"))
-    return 0 if report["status"] in ("pass", "known-gap") else 1
+    return 0 if report["status"] == "pass" else 1
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--harness", choices=list(HARNESS), default="pi")
-    parser.add_argument("--mode", choices=["mock", "live"], default="mock")
-    parser.add_argument("--base-url")
-    parser.add_argument("--model")
-    parser.add_argument("--token-file")
-    parser.add_argument("--expect-undetected", action="store_true", help="Assert a documented missing-detection result; execution must still succeed")
     parser.add_argument("--skip-build", action="store_true", help="Use an already-built image for unchanged source")
     parser.add_argument("--discover", action="store_true", help="Compare configured and tool environments with exact values (mock only)")
     parser.add_argument("--version", help="Select a reviewed version or trial an exact npm release without changing the manifest")

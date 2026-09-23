@@ -58,9 +58,7 @@ def execute(harness, spec):
         # run.py emits schema-validated reports; keep console output concise.
         # Public build progress is still emitted by the build subprocess.
         with contextlib.redirect_stdout(io.StringIO()):
-            run.run(SimpleNamespace(harness=harness, mode="mock", discover=True,
-                    expect_undetected=bool(spec.get("known_gap")), skip_build=False,
-                    base_url=None, model=None, token_file=None))
+            run.run(SimpleNamespace(harness=harness, discover=True, skip_build=False))
         created = set(output.glob("*/report.json")) - previous
         if len(created) != 1:
             raise ValueError("Expected one fresh report")
@@ -121,7 +119,8 @@ def main():
             target.write(markdown)
     print(markdown)
     print("Evidence: " + str(destination))
-    return 0 if result["outcome"] == "unchanged" else 1
+    # Environment/detector changes are research output, not collection failures.
+    return int(result["outcome"] in {"baseline_failed", "execution_failed", "resolution_or_evidence_error"})
 
 
 if __name__ == "__main__":

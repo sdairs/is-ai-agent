@@ -19,8 +19,7 @@ class ReleaseTests(unittest.TestCase):
             candidate = releases.resolve("cline", pinned)
         self.assertTrue(get.call_args.args[0].endswith("/cline/latest"))
         self.assertEqual(candidate["version"], "3.1.0")
-        self.assertEqual(candidate["known_gap"], pinned["known_gap"])
-        self.assertEqual(candidate["markers"], pinned["markers"])
+        self.assertEqual(candidate["tool"], pinned["tool"])
         self.assertEqual(pinned, run.HARNESS["cline"])
         for version in ["latest", "^1.0.0", "1.0.0; echo bad"]:
             with self.assertRaises(ValueError):
@@ -39,7 +38,7 @@ class ReleaseTests(unittest.TestCase):
             spec = releases.resolve("goose", run.HARNESS["goose"])
         self.assertEqual(spec["version"], "1.53.0")
         self.assertEqual(spec["assets"]["x64"]["sha256"], "a" * 64)
-        self.assertTrue(spec["known_gap"])
+        self.assertEqual(spec["tool"], run.HARNESS["goose"]["tool"])
         with patch.object(releases, "read_url", return_value=b"public archive"):
             asset = releases.release_asset({"assets": [{**assets[0], "digest": None}]}, assets[0]["name"])
         self.assertEqual(asset["sha256"], hashlib.sha256(b"public archive").hexdigest())
@@ -61,12 +60,11 @@ class ReleaseTests(unittest.TestCase):
             spec = releases.resolve("junie", run.HARNESS["junie"])
         self.assertEqual(spec["reported_version"], "26.9.22 (3419.7)")
 
-    def test_multiple_reviewed_versions_include_their_own_expectations(self):
-        spec = {"version": "1.2.0", "known_gap": "Absent", "compatibility_versions": [
-            {"version": "1.1.0", "known_gap": None}]}
+    def test_multiple_reviewed_versions_need_complete_install_metadata(self):
+        spec = {"version": "1.2.0", "compatibility_versions": [{"version": "1.1.0"}]}
         self.assertEqual(releases.matrix({"test": spec}), {"include": [
-            {"harness": "test", "version": "1.2.0", "expected_gap": True},
-            {"harness": "test", "version": "1.1.0", "expected_gap": False}]})
+            {"harness": "test", "version": "1.2.0"},
+            {"harness": "test", "version": "1.1.0"}]})
         with self.assertRaises(ValueError):
             releases.pinned_spec({**spec, "assets": {}}, "1.1.0")
         with self.assertRaises(ValueError):
@@ -155,6 +153,21 @@ class WatchTests(unittest.TestCase):
             self.assertTrue((artifacts / "baseline.json").exists())
             self.assertTrue((artifacts / "candidate.json").exists())
             self.assertIn("unchanged", (Path(directory) / "job.md").read_text())
+
+    def test_successful_collection_with_value_changes_does_not_fail_workflow(self):
+        before, after = self.report(), self.report()
+        for report, value in [(before, "container-a"), (after, "container-b")]:
+            report["discovery"]["agent"]["schema"] = 3
+            report["discovery"]["agent"]["environment"]["HOSTNAME"] = {
+                "change": "unchanged", "nonblank": True, "value": value}
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(run, "ROOT", Path(directory)), \
+             patch("sys.argv", ["watch.py", "--harness", "goose"]), \
+             patch.object(releases, "resolve", return_value=run.HARNESS["goose"]), \
+             patch.object(watch, "execute", side_effect=[before, after]), patch("builtins.print"):
+            self.assertEqual(watch.main(), 0)
+            path = next((Path(directory) / "target/harness-watch/goose").glob("*/comparison.json"))
+            self.assertEqual(json.loads(path.read_text())["outcome"], "observations_changed")
 
     def test_resolution_failure_still_writes_safe_actionable_artifacts(self):
         with tempfile.TemporaryDirectory() as directory, \

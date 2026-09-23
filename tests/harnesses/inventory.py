@@ -12,7 +12,6 @@ import run
 import watch
 
 DATA = Path("tests/harnesses/inventory/observed.json")
-DOCUMENT = Path("tests/harnesses/inventory/README.md")
 PROVENANCE = ("library_source_sha256", "probe_source_sha256", "adapter_source_sha256")
 URL = r"https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/actions/runs/[0-9]+"
 STAGES = {"build_or_run", "gateway", "version", "control", "agent", "artifact", "events", "complete", "missing", "invalid"}
@@ -121,23 +120,27 @@ def collect(previous, artifacts, names, run_url):
                 candidate_version = releases.exact_version(resolved["version"])
             before = json.loads((parent / "baseline.json").read_text())
             after = json.loads((parent / "candidate.json").read_text())
-            for report in (before, after):
-                if report.get("stage") != "complete" or report.get("checks", {}).get("real_shell_tool_executed") is not True:
-                    stage = report.get("stage")
-                    errors[name] = {"stage": stage if stage in STAGES else "invalid", "reason": "unverified_execution", "version": candidate_version}
-                    break
-                verified(report, name)
-            else:
+            # Candidate collection is independent of the old pinned release.
+            # A failed baseline prevents comparison, not a verified new snapshot.
+            if after.get("stage") != "complete" or after.get("checks", {}).get("real_shell_tool_executed") is not True:
+                stage = after.get("stage")
+                errors[name] = {"stage": stage if stage in STAGES else "invalid", "reason": "unverified_execution", "version": candidate_version}
+                continue
+            verified(after, name)
+            if after["harness_version"] != candidate_version:
+                raise ValueError("Resolved version differs from execution")
+            entry = observation(after)
+            if before.get("stage") == "complete" and before.get("checks", {}).get("real_shell_tool_executed") is True:
+                verified(before, name)
                 if (before["platform"] != after["platform"] or before["probe"]["nonce"] == after["probe"]["nonce"]
                         or any(before[k] != after[k] for k in PROVENANCE)):
                     raise ValueError("Comparison must use fresh probes on the same measurement code/platform")
-                if after["harness_version"] != candidate_version:
-                    raise ValueError("Resolved version differs from execution")
-                entry = observation(after)
                 outcome = watch.assess(before, after)["outcome"]
-                runs[name] = {"pinned_version": before["harness_version"],
-                              "candidate_version": after["harness_version"], "outcome": outcome}
-                result[name] = entry
+            else:
+                outcome = "baseline_failed"
+            runs[name] = {"pinned_version": before.get("harness_version", run.HARNESS[name]["version"]),
+                          "candidate_version": after["harness_version"], "outcome": outcome}
+            result[name] = entry
         except (OSError, ValueError, KeyError, TypeError):
             errors[name] = {"stage": "invalid", "reason": "invalid_or_incomplete_evidence", "version": candidate_version}
     return result, errors, validate_runs(runs)
@@ -181,7 +184,7 @@ def report_markdown(changes, errors, run_url, runs):
                   f"stage: `{error['stage']}`; reason: `{error['reason']}`. "
                   "Previous inventory retained; no missing-marker conclusion.", ""]
     if not changes and not errors and all(r["outcome"] == "unchanged" for r in runs.values()):
-        lines += ["No inventory or test changes. No commit or issue is needed.", ""]
+        lines += ["No inventory or test changes. No inventory update is needed.", ""]
     else:
         lines += ["Review the changed variables and controls, reproduce with the recorded version, then check upstream "
                   "documentation/source. Changes to our collector can also change the inventory; "

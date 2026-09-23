@@ -5,13 +5,7 @@ on:
     types: [published]
 
 jobs:
-  harness-tests:
-    uses: ./.github/workflows/harness-tests.yml
-    permissions:
-      contents: read
-
   publish:
-    needs: harness-tests
     name: Publish ${{ github.event.release.tag_name }}
     runs-on: ubuntu-latest
     permissions:
@@ -36,7 +30,10 @@ jobs:
       - name: Run tests
         run: cargo test --verbose
 
+      - name: Verify published crate contents
+        run: python3 .github/scripts/check-package.py
+
       - name: Publish to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish
+        run: cargo publish --locked

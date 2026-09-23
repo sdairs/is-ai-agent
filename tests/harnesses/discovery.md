@@ -5,15 +5,16 @@ inside its real command tool. Compare that with controls before promoting a
 variable to a library rule. External detector registries are leads, not evidence.
 
 ```sh
-python3 tests/harnesses/run.py --harness goose --discover --expect-undetected
-python3 tests/harnesses/run.py --harness cline --discover --expect-undetected
+python3 tests/harnesses/run.py --harness goose --discover
+python3 tests/harnesses/run.py --harness cline --discover
 python3 tests/harnesses/run.py --harness pi --discover
 ```
 
 `--discover` works with every adapter and only in mock mode. CI runs it for all
-sixteen CLIs on PRs, manual runs and releases. It adds `discovery.json` and a configured
+sixteen CLIs on PRs and manual runs. It adds `discovery.json` and a configured
 control to the normal evidence directory; Cline also has a non-agent control.
-Discovery does not change `detect()` or make a detection gap pass.
+Collection succeeds when execution is verified, regardless of the library’s
+current detection result. No detector rules change in this PR.
 
 ## Controls and collected evidence
 
@@ -98,8 +99,9 @@ run, other supported backends, and session/resume/nesting behavior as relevant.
 Only then add a narrow rule and regression tests. Discovery never automatically
 imports a candidate into the detector.
 
-The [generated inventory](inventory/README.md) provides a versioned reference
-sheet of harnesses, their variable names and exact values. Weekly reports
+The [generated inventory](inventory/observed.json) records harnesses, their
+variable names and exact values. A readable reference sheet is generated in CI
+artifacts. Weekly reports
 compare it with new observations and propose inventory-only PRs. Detection results,
 controls and changes from the launch baseline remain in the test reports. Generic
 `AGENT` / `AI_AGENT` identities are observed even when another signal wins, so
@@ -113,21 +115,22 @@ image and source fingerprints, controls, observations, and successful tool round
 
 ## Expanded probes (2026-09-23)
 
-| CLI | Observed predicate | Library decision |
+| CLI | Observed predicate | Follow-up research / proposed rule |
 | --- | --- | --- |
-| DeepSeek Harness 0.1.5-rc.3 | `DSH_SHELL == "1"`; `DSH_SESSION_ID` present | Add exact identity rule and nonblank session extraction; session alone does not identify the human web terminal |
-| Kilo 7.7.9 | `KILO == "1"` alongside `OPENCODE` | Identify Kilo before the inherited OpenCode fallback |
-| OpenClaw 2026.9.5 | `OPENCLAW_SHELL == "exec"` | Add exact rule; reject `tui-local`, `acp-client`, `acp` and other values |
-| Hermes 0.21.4 | `AI_AGENT` identifies Hermes; `HERMES_AGENT == "true"`; session present | Add generic aliases, exact marker and nonblank session extraction |
-| VTCode 0.169.1 | `VTCODE == "1"` | Add exact rule; tested `exec` with supported single orchestration mode |
+| DeepSeek Harness 0.1.5-rc.3 | `DSH_SHELL == "1"`; `DSH_SESSION_ID` present | Candidate for an exact identity rule and nonblank session extraction; session alone does not identify the human web terminal |
+| Kilo 7.7.9 | `KILO == "1"` alongside `OPENCODE` | Propose identifying Kilo before the inherited OpenCode fallback |
+| OpenClaw 2026.9.5 | `OPENCLAW_SHELL == "exec"` | Candidate exact rule; distinguish `tui-local`, `acp-client`, `acp` and other values |
+| Hermes 0.21.4 | `AI_AGENT` identifies Hermes; `HERMES_AGENT == "true"`; session present | Candidate generic aliases, exact marker and session extraction |
+| VTCode 0.169.1 | `VTCODE == "1"` | Candidate exact rule; tested `exec` with supported single orchestration mode |
 | Junie 26.9.7 (3110.7) | `JUNIE_SHIM_PATH`, `MATTERHORN_SESSION_ID` present | Retain as candidates, no default identity/session rule yet |
 
-The detection probe checks literal predicates inside the container and exports
-booleans. Discovery additionally records exact environment values, including
-arbitrary strings and generated session identifiers. Positive results require
-clean/configured negative controls and the same fresh output in both the artifact
-and actual tool result. Rust fixtures cover wrong values and precedence; they are
-not presented as real tests of other human/IDE/ACP modes.
+The lab-only detection probe checks literal predicates inside the container and
+exports booleans as research observations. Discovery additionally records exact
+environment values, including arbitrary strings and generated session identifiers.
+A proposed identity rule needs clean/configured negative controls. Collection
+requires the same fresh output in both the artifact and actual tool result. The
+library remains unchanged; candidate rules and their Rust regression tests belong
+in a separate PR. These probes do not establish behavior in other human/IDE/ACP modes.
 
 Junie's headless custom-provider path is verified. The official shim exports its
 path before command dispatch, so presence alone has weaker semantics than a marker

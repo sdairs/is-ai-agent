@@ -152,6 +152,6 @@ def matrix(harnesses):
         if len(versions) != len(set(versions)):
             raise ValueError("Duplicate compatibility version")
         for version in versions:
-            selected = pinned_spec(spec, version)
-            cases.append({"harness": name, "version": version, "expected_gap": bool(selected.get("known_gap"))})
+            pinned_spec(spec, version)
+            cases.append({"harness": name, "version": version})
     return {"include": cases}
