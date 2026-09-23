@@ -4,7 +4,10 @@
     "version": "0.87.1",
     "executable": "pi",
     "tool": "bash",
-    "markers": ["PI_CODING_AGENT", "PI_SESSION_ID"],
+    "markers": [
+      "PI_CODING_AGENT",
+      "PI_SESSION_ID"
+    ],
     "session_var": "PI_SESSION_ID"
   },
   "qwen-code": {
@@ -12,7 +15,10 @@
     "version": "0.24.4",
     "executable": "qwen",
     "tool": "run_shell_command",
-    "markers": ["QWEN_CODE", "QWEN_CODE_SESSION_ID"],
+    "markers": [
+      "QWEN_CODE",
+      "QWEN_CODE_SESSION_ID"
+    ],
     "session_var": "QWEN_CODE_SESSION_ID"
   },
   "opencode": {
@@ -20,7 +26,98 @@
     "version": "1.18.32",
     "executable": "opencode",
     "tool": "bash",
-    "markers": ["OPENCODE"],
+    "markers": [
+      "OPENCODE"
+    ],
     "session_var": null
+  },
+  "github-copilot": {
+    "package": "@github/copilot",
+    "version": "1.0.88",
+    "executable": "copilot",
+    "tool": "bash",
+    "markers": [
+      "COPILOT_CLI"
+    ],
+    "session_var": "COPILOT_AGENT_SESSION_ID",
+    "evidence": "provider"
+  },
+  "crush": {
+    "package": "@charmland/crush",
+    "version": "0.96.1",
+    "executable": "crush",
+    "tool": "bash",
+    "markers": [
+      "CRUSH"
+    ],
+    "session_var": null,
+    "evidence": "provider"
+  },
+  "goose": {
+    "package": "goose",
+    "version": "1.51.0",
+    "executable": "goose",
+    "tool": "shell",
+    "markers": [
+      "GOOSE_TERMINAL"
+    ],
+    "session_var": null,
+    "evidence": "provider",
+    "assets": {
+      "arm64": {
+        "arch": "aarch64",
+        "sha256": "265dda432a28605c3fca03b16435248bc1b84b3b4294b6ac4cc3dfb94bafaeb3"
+      },
+      "x64": {
+        "arch": "x86_64",
+        "sha256": "5bf11b242647b4fef2182e4bbeeeb9a1c129b328834b9e874ca4ea0acec9d935"
+      }
+    },
+    "known_gap": "The pinned CLI executes the probe but supplies none of the expected identity markers."
+  },
+  "cline": {
+    "package": "cline",
+    "version": "3.0.64",
+    "executable": "cline",
+    "tool": "run_commands",
+    "markers": [
+      "CLINE_ACTIVE"
+    ],
+    "session_var": "CLINE_TASK_ID",
+    "evidence": "provider",
+    "known_gap": "The pinned CLI executes the probe but supplies none of the expected identity markers."
+  },
+  "codex": {
+    "package": "@openai/codex",
+    "version": "0.156.1",
+    "executable": "codex",
+    "tool": "exec_command",
+    "markers": [
+      "CODEX_THREAD_ID"
+    ],
+    "session_var": "CODEX_THREAD_ID",
+    "evidence": "provider"
+  },
+  "claude-code": {
+    "package": "@anthropic-ai/claude-code",
+    "version": "2.1.280",
+    "executable": "claude",
+    "tool": "Bash",
+    "markers": [
+      "CLAUDECODE"
+    ],
+    "session_var": "CLAUDE_CODE_SESSION_ID",
+    "evidence": "provider"
+  },
+  "gemini-cli": {
+    "package": "@google/gemini-cli",
+    "version": "0.60.0",
+    "executable": "gemini",
+    "tool": "run_shell_command",
+    "markers": [
+      "GEMINI_CLI"
+    ],
+    "session_var": null,
+    "evidence": "provider"
   }
 }

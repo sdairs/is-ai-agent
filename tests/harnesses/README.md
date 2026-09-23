@@ -6,11 +6,18 @@ run a Rust probe linked against this repository. No LLM, vendor account or real
 credential is needed. The same runner works with OrbStack locally and Docker on
 GitHub-hosted Linux runners.
 
-| Harness | Pinned version | Real tool | Session contract |
+| Harness | Pinned version | Real tool | Detection / session contract |
 | --- | --- | --- | --- |
-| Pi | 0.87.1 | `bash` | `PI_SESSION_ID` |
-| Qwen Code | 0.24.4 | `run_shell_command` | `QWEN_CODE_SESSION_ID` |
-| OpenCode | 1.18.32 | `bash` | No ordinary-shell session ID asserted |
+| Pi | 0.87.1 | `bash` | Detected; `PI_SESSION_ID` |
+| Qwen Code | 0.24.4 | `run_shell_command` | Detected; `QWEN_CODE_SESSION_ID` |
+| OpenCode | 1.18.32 | `bash` | Detected; no session ID asserted |
+| GitHub Copilot CLI | 1.0.88 | `bash` | Detected; `COPILOT_AGENT_SESSION_ID` |
+| Crush | 0.96.1 | `bash` | Detected; no session ID asserted |
+| Codex CLI | 0.156.1 | `exec_command` | Detected; `CODEX_THREAD_ID` |
+| Claude Code | 2.1.280 | `Bash` | Detected; `CLAUDE_CODE_SESSION_ID` |
+| Gemini CLI | 0.60.0 | `run_shell_command` | Detected; no session ID asserted |
+| Goose | 1.51.0 | `shell` (built-in developer extension) | **Known gap:** command runs, library returns `None` |
+| Cline CLI | 3.0.64 | `run_commands` | **Known gap:** command runs, library returns `None` |
 
 Versions, package names and expected signals live in
 [harnesses.json](harnesses.json). This is coverage of the specified Linux
@@ -25,9 +32,12 @@ Start OrbStack (or Docker) and use Python 3.10+:
 python3 tests/harnesses/run.py --harness pi
 python3 tests/harnesses/run.py --harness qwen-code
 python3 tests/harnesses/run.py --harness opencode
+python3 tests/harnesses/run.py --harness codex
+python3 tests/harnesses/run.py --harness claude-code
 ```
 
-The first build downloads public images and the published npm package. Subsequent
+Choose any harness ID in the manifest. The first build downloads public images
+and a published npm package (or a checksum-verified Goose release binary). Subsequent
 builds reuse Docker's cache. `--skip-build` reuses an existing image only when its
 build-input fingerprint still matches. No harness is installed on the host.
 
@@ -41,12 +51,13 @@ Host runner
          └─ private Docker network → scripted provider
 ```
 
-The fake provider returns a standard OpenAI-compatible tool-call response.
+The fake provider implements scripted Chat Completions, Responses, Anthropic
+Messages and Gemini API responses.
 It chooses the shell tool from the CLI's advertised tools and requests exactly
 one probe command. The CLI performs the command execution itself. The provider
 returns a final text response after receiving the tool result.
 
-A successful run requires all of the following:
+A detection pass requires all of the following:
 
 1. The plain-shell control detects no agent.
 2. The CLI executes the exact command once, emits a successful tool result, and
@@ -54,7 +65,13 @@ A successful run requires all of the following:
 3. The tool output matches the freshly written probe artifact and run nonce.
 4. The library identifies the expected harness using its actual markers.
 5. The harness supplies the expected markers/session context, and the library
-   returns the matching session ID (or none for OpenCode).
+   returns the matching session ID (or none where the table specifies it).
+
+For Pi, Qwen Code and OpenCode, CLI events establish the command/result link.
+For the other adapters, the gateway records the requested shell tool and command,
+then observes the matching tool result in the CLI's next API request. The runner
+compares that result with the probe file and checks that the CLI finishes normally.
+The gateway retains this evidence in memory only; it never runs the command itself.
 
 The runner does not set identity or session markers. A clean container prevents
 ambient Codex/CI environment variables from contaminating attribution. A model
@@ -66,6 +83,35 @@ The Pi test initially exposed missing session extraction in `is-ai-agent` 0.5.0;
 this change adds its nonblank session fallback/extraction and focused unit tests.
 The [historical report](evidence/pi-0.87.1-mock.json) records the original failure.
 New runs test the fixed implementation.
+
+## Known detection gaps
+
+Goose 1.51.0 and Cline CLI 3.0.64 both execute the command and return the matching
+probe output, but `detect()` returns `None` in the tested Linux CLI environment.
+Goose supplies neither `GOOSE_TERMINAL` nor a recognised generic identity;
+Cline supplies neither `CLINE_ACTIVE` nor `CLINE_TASK_ID`. No marker is injected
+to make these tests pass, and no provider configuration is promoted to an identity
+rule. This observation does not certify other launch modes or IDE extensions.
+Goose was also checked with `--no-session`; the default saved-session run has the
+same identity gap. The committed adapter uses a normal saved session.
+Sanitized local snapshots: [Goose](evidence/goose-1.51.0-mock.json) and
+[Cline](evidence/cline-3.0.64-mock.json).
+
+Running either adapter normally exits nonzero and reports `fail`. CI explicitly
+uses the documented observation mode:
+
+```sh
+python3 tests/harnesses/run.py --harness goose --expect-undetected
+python3 tests/harnesses/run.py --harness cline --expect-undetected
+```
+
+These jobs are labelled **known detection gap** and reports say `known-gap`,
+never `pass`. They must still execute the exact command successfully, return its
+matching fresh output, have no agent in the control shell, and produce exactly
+the expected absence of detection/session/identity markers. Infrastructure errors,
+failed commands, unexpected attribution, or newly appearing expected markers fail
+CI. When detection becomes possible, remove the known-gap entry and switch the
+adapter to an ordinary detection test.
 
 ## GitHub Actions
 
@@ -81,8 +127,9 @@ credentials. The publishing token is still confined to the publish step.
 
 Each matrix job uploads only schema-validated JSON evidence, retained for 14 days,
 even if a check fails. Reports distinguish `pass`, `fail` (a contract mismatch)
-and `error` (infrastructure/invalid evidence). Build failures remain visible in
-normal build logs. There is no `continue-on-error` or expected-failure exemption.
+and `error` (infrastructure/invalid evidence). The two explicitly labelled discovery
+jobs can also report `known-gap`, as described above. Build failures remain visible
+in normal build logs. There is no blanket `continue-on-error` exemption.
 
 The runner writes `report.json`, `probe.json` and `control.json` under
 `target/harness-runs/<harness>/<run-id>/`, already ignored by Git. Reports include
@@ -95,7 +142,9 @@ Default/mock mode never reads the host's OpenCode configuration or credential
 files. The build context has an explicit source-file allowlist: no `.git`, home
 directory, local configuration, or arbitrary repository files. Runtime agent
 containers receive only an empty scratch workspace and disposable evidence folder.
-They have a read-only root filesystem, an unprivileged user, no Docker socket,
+The disposable `/tmp` permits execution because Copilot extracts a native module
+there; it is size-limited and disappears with the container. They have a read-only
+root filesystem, an unprivileged user, no Docker socket,
 and an internal network without an external route. No host ports are published.
 
 The probe exports only constant identity/signal names and booleans. It never
@@ -106,14 +155,18 @@ work in [issue #5](https://github.com/sdairs/is-ai-agent/issues/5).
 
 Raw CLI transcripts are processed in memory and discarded. Docker runtime logs
 are disabled. Unknown artifact fields and non-boolean marker values are rejected.
-The workflow uploads the sanitized output directory, never CLI homes or logs.
+Provider-side tool evidence is also processed in memory and discarded. Its read
+endpoint exists only in mock mode on the private container network. The workflow
+uploads the sanitized output directory, never CLI homes or logs.
 
 ## Optional live inference (local only)
 
 Live mode is retained for manual provider checks. It is **not exposed by the
 GitHub workflow** and is not needed for detection CI. It requires an
 OpenAI-compatible streaming chat-completions endpoint with tool calls and Bearer
-authentication. Use the exact model ID supported by your endpoint.
+authentication. It is currently supported only by the original Pi, Qwen Code and
+OpenCode adapters; the seven additional adapters require mock mode. Use the exact
+model ID supported by your endpoint.
 
 ```sh
 python3 tests/harnesses/run.py --harness pi --mode live \
@@ -133,12 +186,12 @@ The live route has not been tested against the private ClickHouse endpoint.
 ## Adding a harness
 
 Add an exact package version/contract to `harnesses.json`, a custom-provider
-configuration and normal CLI invocation to `entrypoint.mjs`, a verifier for its
-actual execution events to `run.py`, and a matrix entry in the workflow. Extend
+configuration and normal CLI invocation to `entrypoint.mjs`, either a verifier
+for its actual execution events or the correlated provider roundtrip verifier in `run.py`, and a matrix entry in the workflow. Extend
 the probe's explicit marker/session allowlists only where needed. Include positive
 and adversarial verifier fixtures, then run the real container test.
 
-The current adapters all use OpenAI chat completions. Other protocols may need
+The current gateway covers four protocols. Other protocols may need
 a new provider adapter. Harnesses requiring a vendor login or hardcoded backend
 remain untested under this workflow. Source availability is not the requirement;
 configurable model endpoints and an automatable execution surface are.
@@ -161,3 +214,12 @@ References: [Pi provider configuration](https://github.com/earendil-works/pi/blo
 [Qwen headless mode](https://github.com/QwenLM/qwen-code/blob/main/docs/users/features/headless.md),
 [OpenCode custom providers](https://opencode.ai/docs/providers/),
 [OpenCode event emission](https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/cli/cmd/run.ts).
+
+Additional adapter references:
+[Copilot offline/custom-provider authentication](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli),
+[Crush providers](https://github.com/charmbracelet/crush#custom-providers),
+[Codex providers](https://learn.chatgpt.com/docs/config-file/config-reference),
+[Claude gateway protocol](https://code.claude.com/docs/en/llm-gateway-protocol),
+[Gemini endpoint configuration](https://geminicli.com/docs/reference/configuration/),
+[Goose shell source at v1.51.0](https://github.com/aaif-goose/goose/blob/v1.51.0/crates/goose/src/agents/platform_extensions/developer/shell.rs),
+[Cline CLI](https://github.com/cline/cline/blob/main/apps/cli/README.md).

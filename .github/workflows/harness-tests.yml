@@ -34,20 +34,25 @@ jobs:
         run: python3 -m unittest discover -s tests/harnesses -p 'test_*.py'
 
   harness:
-    name: ${{ matrix.harness }} / Linux
+    name: ${{ matrix.harness }} / Linux ${{ matrix.expected_gap && '(known detection gap)' || '' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        harness: [pi, qwen-code, opencode]
+        harness: [pi, qwen-code, opencode, github-copilot, crush, codex, claude-code, gemini-cli]
+        include:
+          - harness: goose
+            expected_gap: true
+          - harness: cline
+            expected_gap: true
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
       - name: Run real CLI against scripted provider
         # No secrets, private configuration, provider login, or live inference.
-        run: python3 tests/harnesses/run.py --harness '${{ matrix.harness }}' --mode mock
+        run: python3 tests/harnesses/run.py --harness '${{ matrix.harness }}' --mode mock ${{ matrix.expected_gap && '--expect-undetected' || '' }}
       - name: Upload sanitized evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

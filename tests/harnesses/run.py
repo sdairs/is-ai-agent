@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -17,10 +18,13 @@ HERE = Path(__file__).resolve().parent
 HARNESS = json.loads((HERE / "harnesses.json").read_text())
 GATEWAY_IMAGE = "python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea"
 BUILD_FILES = ["Cargo.toml", "Cargo.lock", "src/lib.rs", "examples/detect.rs", "examples/probe.rs",
-               "tests/harnesses/Dockerfile", "tests/harnesses/entrypoint.mjs", "tests/harnesses/harnesses.json"]
+               "tests/harnesses/install.mjs", "tests/harnesses/Dockerfile", "tests/harnesses/entrypoint.mjs", "tests/harnesses/harnesses.json"]
 MARKERS = {"PI_CODING_AGENT", "PI_SESSION_ID", "QWEN_CODE", "GEMINI_CLI",
-           "QWEN_CODE_SESSION_ID", "OPENCODE", "OPENCODE_PID"}
-SESSIONS = {"PI_SESSION_ID", "QWEN_CODE_SESSION_ID"}
+           "QWEN_CODE_SESSION_ID", "OPENCODE", "OPENCODE_PID",
+           "COPILOT_CLI", "COPILOT_AGENT", "COPILOT_AGENT_SESSION_ID", "CRUSH", "GOOSE_TERMINAL",
+           "CLINE_ACTIVE", "CLINE_TASK_ID", "CODEX_THREAD_ID", "CODEX_SESSION_ID", "CODEX_SANDBOX",
+           "CLAUDECODE", "CLAUDE_CODE_CHILD_SESSION", "CLAUDE_CODE_SESSION_ID"}
+SESSIONS = {"PI_SESSION_ID", "QWEN_CODE_SESSION_ID", "COPILOT_AGENT_SESSION_ID", "CLINE_TASK_ID", "CODEX_THREAD_ID", "CLAUDE_CODE_SESSION_ID"}
 
 
 def build_fingerprint():
@@ -74,16 +78,22 @@ def validate_probe(value, nonce):
 
 
 def library_version():
-    import re
     return re.search(r'^version = "([^"]+)"', (ROOT / "Cargo.toml").read_text(), re.M)[1]
 
 
-def output_matches(text, probe):
+def output_matches(text, probe, depth=0):
+    if depth > 8:
+        return False
+    if isinstance(text, (dict, list)):
+        if text == probe:
+            return True
+        return any(output_matches(v, probe, depth + 1) for v in (text.values() if isinstance(text, dict) else text))
     if not isinstance(text, str):
         return False
     for line in text.split("\n"):
         try:
-            if json.JSONDecoder().raw_decode(line[line.index("{"):])[0] == probe:
+            value = json.JSONDecoder().raw_decode(line[line.index("{"):])[0]
+            if output_matches(value, probe, depth + 1):
                 return True
         except ValueError:
             pass
@@ -129,10 +139,37 @@ def verify_events(raw, command, probe, harness="pi"):
             "agent_settled": any(e.get("type") == "agent_settled" for e in events)}
 
 
+def verify_provider(evidence, command, probe, tool):
+    calls, results = evidence.get("calls", []), evidence.get("results", [])
+    valid = len(calls) == 1 and calls[0].get("command") == command and calls[0].get("name") == tool
+    success = bool(valid and len(results) == 1 and results[0].get("id") == calls[0].get("id")
+                   and results[0].get("is_error") is False)
+    return {"exact_probe_command": bool(valid), "tool_completed": success,
+            "tool_output_matches_artifact": success and output_matches(results[0].get("content"), probe),
+            "agent_settled": evidence.get("final_responses", 0) > 0}
+
+
+def classify_result(report, spec, expect_undetected=False):
+    checks, probe = report["checks"], report["probe"]
+    if expect_undetected:
+        # A pinned known gap is an explicit observation, never a detection pass.
+        # Do not accept tool failures, unexpected attribution, or new markers.
+        expected = (spec.get("known_gap") and checks["plain_shell_not_detected"]
+                    and checks["real_shell_tool_executed"] and probe["agent"] is None
+                    and probe["signal"] is None and not probe["session_present"]
+                    and not any(probe["markers"][name] for name in spec["markers"]))
+        return "known-gap" if expected else "fail"
+    return "pass" if all(checks.values()) else "fail"
+
+
 def run(args):
     spec = HARNESS[args.harness]
+    if args.expect_undetected and (not spec.get("known_gap") or args.mode != "mock"):
+        raise ValueError("--expect-undetected only applies to documented mock-mode detection gaps")
     image = f"is-ai-agent-test-{args.harness}:{spec['version']}"
     token = None
+    if args.mode == "live" and spec.get("evidence") == "provider":
+        raise ValueError("This adapter currently supports mock mode only")
     if args.mode == "live":
         if not all([args.base_url, args.model, args.token_file]):
             raise ValueError("Live mode needs --base-url, --model, and --token-file")
@@ -157,7 +194,7 @@ def run(args):
     output = ROOT / "target" / "harness-runs" / args.harness / run_id
     output.mkdir(parents=True, mode=0o700)
     harden = ["--cap-drop=ALL", "--security-opt=no-new-privileges", "--read-only",
-              "--pids-limit=128", "--memory=1g", "--cpus=2", "--log-driver=none"]
+              "--pids-limit=128", "--memory=2g", "--cpus=2", "--log-driver=none"]
     nonce = uuid.uuid4().hex
     command = f"/usr/local/bin/agent-probe /artifacts/agent.json {nonce}"
     report = {"schema": 2, "mode": args.mode, "harness": args.harness, "harness_version": spec["version"],
@@ -201,12 +238,12 @@ def run(args):
             for directory in (control_dir, agent_dir):
                 directory.mkdir(mode=0o777)
                 directory.chmod(0o777)  # container UID 1000 differs from macOS UID
-            common = [*harden, "--tmpfs", "/tmp:rw,nosuid,nodev,size=128m,mode=1777",
+            common = [*harden, "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=512m,mode=1777",
                       "--tmpfs", "/work:rw,nosuid,nodev,size=16m,mode=1777"]
             report["stage"] = "version"
             actual_version = docker("run", "--rm", *common, "--network=none", "-e", "HOME=/tmp", "--entrypoint", spec["executable"], image,
                                     "--version").stdout.strip()
-            if actual_version != report["harness_version"]:
+            if not re.search(r"(?<![\d.])" + re.escape(report["harness_version"]) + r"(?!\d|\.\d)", actual_version):
                 raise ValueError("Installed version differs from test target")
             report["stage"] = "control"
             control = docker("run", "--rm", *common, "--network=none",
@@ -217,7 +254,7 @@ def run(args):
             if json.loads((control_dir / "control.json").read_text()) != control_record:
                 raise ValueError("Control file differs from process output")
             report["control"] = control_record
-            docker("create", "--name", agent, *common, "--network", network,
+            docker("create", "--name", agent, *common, "--network", "container:" + gateway if args.harness == "gemini-cli" else network,
                    "--mount", f"type=bind,src={agent_dir},dst=/artifacts", image, args.harness,
                    "Run exactly this command once using the shell tool, then stop. Do not set any environment variables, "
                    "edit files, or run any other command: " + command)
@@ -230,7 +267,12 @@ def run(args):
                 raise ValueError("Probe artifact missing or invalid")
             report["probe"] = validate_probe(json.loads(artifact.read_text()), nonce)
             report["stage"] = "events"
-            report["execution"] = verify_events(result.stdout, command, report["probe"], args.harness)
+            if spec.get("evidence") == "provider":
+                evidence = docker("exec", gateway, "python", "-c",
+                    "import urllib.request; print(urllib.request.urlopen('http://localhost:8080/evidence').read().decode())").stdout
+                report["execution"] = verify_provider(json.loads(evidence), command, report["probe"], spec["tool"])
+            else:
+                report["execution"] = verify_events(result.stdout, command, report["probe"], args.harness)
 
         p = report["probe"]
         report["checks"] = {
@@ -240,7 +282,9 @@ def run(args):
             "harness_exported_markers": all(p["markers"][name] for name in spec["markers"]),
             "session_contract": p["session_matches"][spec["session_var"]] if spec["session_var"] else not p["session_present"],
         }
-        report["status"] = "pass" if all(report["checks"].values()) else "fail"
+        report["status"] = classify_result(report, spec, args.expect_undetected)
+        if spec.get("known_gap"):
+            report["known_gap"] = spec["known_gap"]
         report["stage"] = "complete"
     except (RuntimeError, ValueError, OSError, subprocess.TimeoutExpired) as error:
         # Exception details could contain arbitrary harness text. Persist type only.
@@ -256,7 +300,7 @@ def run(args):
             (output / (key + ".json")).write_text(json.dumps(report[key], indent=2) + "\n")
     print(json.dumps(report, indent=2))
     print("Report: " + str(output / "report.json"))
-    return 0 if report["status"] == "pass" else 1
+    return 0 if report["status"] in ("pass", "known-gap") else 1
 
 
 if __name__ == "__main__":
@@ -266,5 +310,6 @@ if __name__ == "__main__":
     parser.add_argument("--base-url")
     parser.add_argument("--model")
     parser.add_argument("--token-file")
+    parser.add_argument("--expect-undetected", action="store_true", help="Assert a documented missing-detection result; execution must still succeed")
     parser.add_argument("--skip-build", action="store_true", help="Use an already-built image for unchanged source")
     raise SystemExit(run(parser.parse_args()))

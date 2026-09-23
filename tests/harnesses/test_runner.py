@@ -1,7 +1,10 @@
 """Verify rejection of false evidence and credential handling, without a model."""
 import io
 import json
+import threading
 import unittest
+import urllib.request
+from http.server import ThreadingHTTPServer
 from unittest.mock import patch
 
 import gateway
@@ -69,6 +72,9 @@ class EvidenceTests(unittest.TestCase):
 
 
 class GatewayTests(unittest.TestCase):
+    def setUp(self):
+        gateway.Handler.evidence = {"calls": [], "results": [], "final_responses": 0}
+
     def handler(self, body=None):
         handler = gateway.Handler.__new__(gateway.Handler)
         data = json.dumps(body or {"messages": [], "max_tokens": 99999}).encode()
@@ -137,6 +143,105 @@ class GatewayTests(unittest.TestCase):
         handler = self.handler({"messages": [{"role": "tool", "content": "probe output"}]})
         handler.do_POST()
         self.assertEqual(json.loads(handler.wfile.getvalue())["choices"][0]["finish_reason"], "stop")
+
+
+class ProviderEvidenceTests(unittest.TestCase):
+    def test_only_correlated_successful_shell_output_passes(self):
+        evidence = {"calls": [{"id": "call_probe", "name": "bash", "command": "probe"}],
+                    "results": [{"id": "call_probe", "content": '{"agent":"crush"}', "is_error": False}],
+                    "final_responses": 1}
+        def verify(value):
+            return all(run.verify_provider(value, "probe", {"agent": "crush"}, "bash").values())
+        self.assertTrue(verify(evidence))
+        for call in [{"command": "echo fake"}, {"name": "write_file"}]:
+            self.assertFalse(verify({**evidence, "calls": [{**evidence["calls"][0], **call}]}))
+        for result in [{"id": "unrelated"}, {"is_error": True}, {"content": "Done"}, {"content": '{"agent":"goose"}'}]:
+            self.assertFalse(verify({**evidence, "results": [{**evidence["results"][0], **result}]}))
+        for field in ["calls", "results"]:
+            self.assertFalse(verify({**evidence, field: evidence[field] * 2}))
+            self.assertFalse(verify({**evidence, field: []}))
+        self.assertFalse(verify({**evidence, "final_responses": 0}))
+
+    def test_nested_gemini_tool_output_is_compared_to_full_probe(self):
+        probe = {"agent": "gemini-cli", "nonce": "fresh"}
+        content = json.dumps({"output": "Output: " + json.dumps(probe) + "\nProcess exited"})
+        self.assertTrue(run.output_matches(content, probe))
+        self.assertFalse(run.output_matches(content, {**probe, "nonce": "stale"}))
+
+    def test_known_gap_cannot_hide_execution_failures_or_unexpected_detection(self):
+        spec = {"known_gap": "Pinned CLI has no marker", "markers": ["CLINE_ACTIVE"]}
+        probe = {"agent": None, "signal": None, "session_present": False, "markers": {"CLINE_ACTIVE": False}}
+        checks = {"plain_shell_not_detected": True, "real_shell_tool_executed": True, "harness_identified": False}
+        report = {"checks": checks, "probe": probe}
+        self.assertEqual(run.classify_result(report, spec), "fail")
+        self.assertEqual(run.classify_result(report, spec, True), "known-gap")
+        for changed in [{"agent": "cline"}, {"signal": "CLINE_ACTIVE"}, {"session_present": True},
+                        {"markers": {"CLINE_ACTIVE": True}}]:
+            self.assertEqual(run.classify_result({**report, "probe": {**probe, **changed}}, spec, True), "fail")
+        for name in ["plain_shell_not_detected", "real_shell_tool_executed"]:
+            self.assertEqual(run.classify_result({**report, "checks": {**checks, name: False}}, spec, True), "fail")
+        self.assertEqual(run.classify_result(report, {**spec, "known_gap": None}, True), "fail")
+
+
+class GatewayHTTPTests(unittest.TestCase):
+    """Exercise actual HTTP/stream serialization, not just handler methods."""
+    def setUp(self):
+        gateway.Handler.count = 0
+        gateway.Handler.evidence = {"calls": [], "results": [], "final_responses": 0}
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), gateway.Handler)
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+        self.base = f"http://127.0.0.1:{self.server.server_port}"
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join()
+
+    def post(self, path, body):
+        request = urllib.request.Request(self.base + path, json.dumps(body).encode(), {"Content-Type": "application/json"})
+        with urllib.request.urlopen(request, timeout=2) as response:
+            return response.read().decode()
+
+    def test_all_four_protocols_produce_and_observe_a_real_tool_roundtrip(self):
+        command = "/usr/local/bin/agent-probe /artifacts/agent.json " + "b" * 32
+        probe = {"agent": "test", "nonce": "b" * 32}
+        output = json.dumps(probe)
+        parameters = {"type": "object", "properties": {"command": {"type": "string"}}}
+        tool = {"name": "bash", "parameters": parameters}
+        fixtures = [
+            ("/v1/chat/completions", {"stream": True, "messages": [{"role": "user", "content": command}],
+                "tools": [{"type": "function", "function": tool}]},
+                {"messages": [{"role": "tool", "tool_call_id": "call_probe", "content": output}]}),
+            ("/v1/responses", {"stream": True, "input": [{"role": "user", "content": command}],
+                "tools": [{"type": "function", **tool}]},
+                {"input": [{"type": "function_call_output", "call_id": "call_probe", "output": output}]}),
+            ("/v1/messages?beta=true", {"stream": True, "messages": [{"role": "user", "content": command}],
+                "tools": [{"name": "bash", "input_schema": parameters}]},
+                {"messages": [{"role": "user", "content": [{"type": "tool_result", "tool_use_id": "call_probe", "content": output}]}]}),
+            ("/v1beta/models/test:streamGenerateContent?alt=sse", {"contents": [{"role": "user", "parts": [{"text": command}]}],
+                "tools": [{"functionDeclarations": [tool]}]},
+                {"contents": [{"role": "user", "parts": [{"functionResponse": {"name": "bash", "id": "call_probe", "response": {"output": output}}}]}]}),
+        ]
+        for path, initial, followup in fixtures:
+            with self.subTest(protocol=path):
+                gateway.Handler.count = 0
+                gateway.Handler.evidence = {"calls": [], "results": [], "final_responses": 0}
+                response = self.post(path, initial)
+                self.assertIn("call_probe", response)
+                self.assertIn(command, response)
+                self.post(path, {**initial, **followup})
+                with urllib.request.urlopen(self.base + "/evidence", timeout=2) as response:
+                    evidence = json.load(response)
+                self.assertTrue(all(run.verify_provider(evidence, command, probe, "bash").values()))
+
+    def test_cline_receives_one_command_in_its_advertised_array_schema(self):
+        command = "/usr/local/bin/agent-probe /artifacts/agent.json " + "c" * 32
+        body = {"messages": [{"role": "user", "content": command}], "tools": [{"type": "function", "function": {
+            "name": "run_commands", "parameters": {"properties": {"commands": {"type": "array", "items": {"type": "string"}}}}}}]}
+        response = json.loads(self.post("/v1/chat/completions", body))
+        call = response["choices"][0]["message"]["tool_calls"][0]
+        self.assertEqual(json.loads(call["function"]["arguments"]), {"commands": [command]})
 
 
 if __name__ == "__main__":

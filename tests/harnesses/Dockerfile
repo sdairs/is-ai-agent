@@ -6,10 +6,12 @@ COPY examples ./examples
 RUN cargo build --locked --offline --release --example probe
 
 FROM node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 ARG HARNESS_PACKAGE
 ARG HARNESS_VERSION
-RUN npm install --global ${HARNESS_PACKAGE}@${HARNESS_VERSION} \
-    && npm cache clean --force
+COPY tests/harnesses/install.mjs tests/harnesses/harnesses.json /opt/
+RUN node /opt/install.mjs ${HARNESS_PACKAGE} ${HARNESS_VERSION}
 COPY --from=probe /build/target/release/examples/probe /usr/local/bin/agent-probe
 COPY tests/harnesses/entrypoint.mjs /opt/entrypoint.mjs
 USER node

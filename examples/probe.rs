@@ -11,8 +11,28 @@ const MARKERS: &[&str] = &[
     "QWEN_CODE_SESSION_ID",
     "OPENCODE",
     "OPENCODE_PID",
+    "COPILOT_CLI",
+    "COPILOT_AGENT",
+    "COPILOT_AGENT_SESSION_ID",
+    "CRUSH",
+    "GOOSE_TERMINAL",
+    "CLINE_ACTIVE",
+    "CLINE_TASK_ID",
+    "CODEX_THREAD_ID",
+    "CODEX_SESSION_ID",
+    "CODEX_SANDBOX",
+    "CLAUDECODE",
+    "CLAUDE_CODE_CHILD_SESSION",
+    "CLAUDE_CODE_SESSION_ID",
 ];
-const SESSIONS: &[&str] = &["PI_SESSION_ID", "QWEN_CODE_SESSION_ID"];
+const SESSIONS: &[&str] = &[
+    "PI_SESSION_ID",
+    "QWEN_CODE_SESSION_ID",
+    "COPILOT_AGENT_SESSION_ID",
+    "CLINE_TASK_ID",
+    "CODEX_THREAD_ID",
+    "CLAUDE_CODE_SESSION_ID",
+];
 
 fn nonblank(name: &str) -> Option<String> {
     env::var(name).ok().filter(|v| !v.trim().is_empty())

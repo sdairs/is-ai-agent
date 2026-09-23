@@ -126,8 +126,10 @@ The detected `Agent` carries the `Signal` that matched, so callers can see exact
 
 ## Real harness tests
 
-A [container test lab](tests/harnesses/README.md) runs the unmodified Pi, Qwen
-Code and OpenCode CLIs against a Rust probe. GitHub Actions runs these tests on
+A [container test lab](tests/harnesses/README.md) runs ten unmodified CLIs against
+a Rust probe: Pi, Qwen Code, OpenCode, Copilot CLI, Crush, Codex, Claude Code,
+Gemini CLI, Goose and Cline CLI. Eight have detection assertions; Goose and Cline
+are explicitly labelled known detection gaps despite successful command execution. GitHub Actions runs these tests on
 pull requests, on pushes to `main`, and before publishing a release. A scripted
 local provider requests a real shell-tool invocation; no LLM credentials or
 vendor accounts are needed. Sanitized reports record identity, session handling
