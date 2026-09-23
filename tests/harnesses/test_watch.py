@@ -114,8 +114,20 @@ class WatchTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             watch.assess(before, after)
 
-    def test_raw_values_never_reach_comparison(self):
+    def test_changed_value_of_existing_marker_is_not_a_new_candidate(self):
+        before, after = self.report("goose"), self.report("goose")
+        for report, value in [(before, "goose_1-52-0_agent"), (after, "goose_1-53-0_agent")]:
+            report["discovery"]["agent"]["schema"] = 2
+            report["discovery"]["agent"]["environment"]["AI_AGENT"] = {
+                "change": "added", "nonblank": True, "value": value}
+        result = watch.assess(before, after)
+        self.assertEqual(result["outcome"], "observations_changed")
+        self.assertEqual(result["candidates"], [])
+        self.assertEqual(result["changes"]["environment.AI_AGENT"]["after"]["value"], "goose_1-53-0_agent")
+
+    def test_unapproved_values_never_reach_comparison(self):
         before, after = self.report(), self.report()
+        after["discovery"]["agent"]["schema"] = 2
         after["discovery"]["agent"]["environment"]["NEW_AGENT"] = {
             "change": "added", "nonblank": True, "value": "sentinel-secret"}
         with self.assertRaises(ValueError):

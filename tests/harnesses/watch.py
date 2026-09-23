@@ -29,7 +29,9 @@ def assess(before, after):
         if field.startswith("environment."):
             name = field.removeprefix("environment.")
             observed = delta["after"] or {}
+            previous = delta["before"] or {}
             if (observed.get("change") == "added" and observed.get("nonblank")
+                    and not (previous.get("change") == "added" and previous.get("nonblank"))
                     and not negative.get(name, {}).get("nonblank")):
                 candidates.append(name)
     if old_agent is not None and old_agent != new_agent:
