@@ -208,13 +208,77 @@ The job summary classifies the result:
   the comparison could not establish the required execution evidence.
 
 Every delta or execution/resolution failure makes its watcher job fail so it is
-visible in Actions and normal GitHub workflow notifications. It does not open
-issues or modify code automatically. Per-harness artifacts retain resolved build
+visible in Actions and normal GitHub workflow notifications. Per-harness artifacts retain resolved build
 metadata, both sanitized reports, the structured comparison and Markdown summary
 for 90 days. Investigate a candidate with source and non-agent controls before
 adding an identity rule. Raw values are never exported: an arbitrary value change
 under an existing name may go unnoticed until an explicit boolean predicate is
 added to the probe. A new name is a lead, not proof of an agent-only marker.
+
+### Versioned inventory and review issues
+
+The [generated reference sheet](inventory/README.md) and [structured inventory](inventory/observed.json)
+record the latest reviewed observations for every harness. These files are read
+only by the inventory/reporting tools: the library, build context, detection
+contracts and pinned test assertions never consume them. Git history preserves
+earlier observations after inventory PRs are merged.
+
+Each entry includes the exact CLI version, platform, shell tool, selected detection
+signal, session/marker predicates, all portable environment names visible in the
+probe (including inherited configuration), and change classifications against the
+configured baseline. It records available non-agent controls and explicitly marks
+the rest untested. `AGENT` and `AI_AGENT` are independently classified even if a
+different signal wins; only canonical library identities are exported. Arbitrary
+values, credentials, paths and actual session IDs remain redacted. Variable names
+must match `[A-Za-z_][A-Za-z0-9_]{0,95}`; invalid/long names are omitted, and more
+than 256 names fails validation rather than silently truncating the inventory.
+
+The aggregation job runs even when individual watchers report a delta or fail.
+It compares this week's latest observations with the **checked-in inventory**,
+in addition to the per-harness pinned-versus-latest comparison. A verified command
+with a changed detection contract can update an observation. An installation,
+execution, missing-artifact or invalid-evidence failure retains that harness's
+previous entry and reports it as unavailable, never as a removed marker.
+
+For scheduled runs, or manual `all` / `latest` runs on the default branch, a
+separate publisher opens or updates an inventory-only PR on
+`codex/harness-inventory`. Its tree can change only the two generated files. It
+does not commit to the default branch, change rules, rewrite the manifest, force
+push, or automatically merge. It rejects a stale default branch or unrelated
+changes on its proposal branch. PR and single-harness/version trials only produce
+downloadable inventory previews; they cannot publish.
+
+Signal changes and unavailable probes also create an investigation issue with the
+before/after delta, exact versions, evidence link and inventory PR. The issue
+classifies preserved detection, changed detection, still-undetected candidates,
+and changed controls. Changes in the library, probe, adapter or platform are
+called out so a measurement change is not automatically blamed on upstream.
+The issue does not assert that an upstream change is a defect. Review whether it
+is a compatible migration, a rule we should add, or a possible regression.
+
+Identical observations and versions create no PR or issue; a new version with
+identical signals creates an inventory PR without an issue. Timestamps/run URLs
+alone do not cause commits. Matching observation issues are updated rather than
+duplicated, and closed issues are treated as acknowledged rather than reopened.
+An obsolete inventory PR is closed only when a complete run again matches main.
+Full fresh artifacts and the combined report remain available for 90 days.
+
+The publisher is isolated from the probe jobs and receives only the repository's
+GitHub token. It requires contents, issues and pull-request write permissions;
+the repository setting **Allow GitHub Actions to create and approve pull requests**
+must allow PR creation. The workflow never approves a PR. GitHub-token-created
+PRs do not themselves trigger another workflow run; inventory schemas and scope
+are checked before publication. See [GitHub token behavior](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows).
+
+To generate a preview from downloaded watcher artifacts:
+
+```sh
+python3 tests/harnesses/inventory.py --artifacts /path/to/downloaded/artifacts \
+  --run-url https://github.com/OWNER/REPO/actions/runs/RUN_ID
+```
+
+The output is `target/harness-inventory/`: JSON, the reference sheet, structured
+delta, and a readable summary. No GitHub write happens in this command.
 
 The schedule starts only after this workflow reaches the default branch. GitHub
 may delay scheduled runs and disables schedules in inactive public repositories

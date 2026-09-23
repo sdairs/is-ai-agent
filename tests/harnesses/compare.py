@@ -18,6 +18,9 @@ def observation(report):
     if probe.get("signal") not in [None, "AGENT", "AI_AGENT", *run.MARKERS]:
         raise ValueError("Unknown signal")
     fields = {"agent": probe["agent"], "signal": probe["signal"]}
+    if "generic_markers" in probe:
+        for name, identity in run.validate_generic(probe["generic_markers"]).items():
+            fields[f"generic_markers.{name}"] = identity
     for field, names in [("markers", run.MARKERS), ("exact_markers", run.EXACT_MARKERS),
                          ("session_matches", run.SESSIONS)]:
         for name, value in probe.get(field, {}).items():

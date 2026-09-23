@@ -30,7 +30,7 @@ Discovery does not change `detect()` or make a detection gap pass.
    turn. This is a dependency fixture, not an end-to-end test of the skills CLI.
 
 The configured baseline exists only in the container's private `/tmp` filesystem.
-The helper compares values there and exports only uppercase environment names,
+The helper compares values there and exports only portable environment names,
 `added`/`changed`/`removed`/`unchanged`, and nonblank booleans. No values, lengths,
 hashes, session IDs, command arguments, or executable paths leave the container.
 An optional diagnostic process chain is represented using a fixed list of
@@ -95,6 +95,13 @@ Add a real negative control for that launch surface, then check another fresh
 run, other supported backends, and session/resume/nesting behavior as relevant.
 Only then add a narrow rule and regression tests. Discovery never automatically
 imports a candidate into the detector.
+
+The [generated inventory](inventory/README.md) provides a versioned reference
+sheet with every observed name and its relation to the configured baseline.
+Weekly reports compare it with new observations and propose inventory-only PRs.
+Generic `AGENT` / `AI_AGENT` classifications are recorded independently of the
+winning signal, so adoption alongside an older marker is visible. Signal changes
+with preserved detection are review items, not automatic upstream bug reports.
 
 Sanitized local Linux ARM64 snapshots: [Goose](evidence/goose-1.51.0-discovery.json)
 and [Cline](evidence/cline-3.0.64-discovery.json). Each records the version, image

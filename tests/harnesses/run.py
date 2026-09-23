@@ -39,7 +39,7 @@ def validate_discovery(value, nonce):
     if not isinstance(environment, dict) or len(environment) > 256:
         raise ValueError("Invalid discovery environment")
     for name, info in environment.items():
-        if (not re.fullmatch(r"[A-Z_][A-Z0-9_]{0,95}", name) or not isinstance(info, dict)
+        if (not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,95}", name) or not isinstance(info, dict)
                 or set(info) != {"change", "nonblank"} or type(info["nonblank"]) is not bool
                 or not isinstance(info["change"], str) or info["change"] not in {"added", "removed", "changed", "unchanged"}):
             raise ValueError("Invalid discovery fields")
@@ -100,8 +100,8 @@ def build(harness, image):
 
 
 def validate_probe(value, nonce):
-    keys = {"schema", "nonce", "library_version", "agent", "signal", "session_present", "markers", "exact_markers", "session_matches"}
-    if not isinstance(value, dict) or set(value) != keys or value["schema"] != 3 or value["nonce"] != nonce:
+    keys = {"schema", "nonce", "library_version", "agent", "signal", "session_present", "markers", "exact_markers", "session_matches", "generic_markers"}
+    if not isinstance(value, dict) or set(value) != keys or value["schema"] != 4 or value["nonce"] != nonce:
         raise ValueError("Invalid or stale probe artifact")
     if value["agent"] not in [None, "unknown", *HARNESS] or value["signal"] not in [None, "AGENT", "AI_AGENT", *MARKERS]:
         raise ValueError("Unexpected detector attribution")
@@ -112,6 +112,14 @@ def validate_probe(value, nonce):
             raise ValueError("Invalid probe fields")
     if value["library_version"] != library_version():
         raise ValueError("Probe library version mismatch")
+    validate_generic(value["generic_markers"])
+    return value
+
+
+def validate_generic(value):
+    if (not isinstance(value, dict) or set(value) != {"AGENT", "AI_AGENT"}
+            or any(v not in [None, "unknown", *HARNESS] for v in value.values())):
+        raise ValueError("Invalid generic marker classification")
     return value
 
 
@@ -250,6 +258,9 @@ def run(args):
               "build_sha256": image_fingerprint,
               "gateway_image": GATEWAY_IMAGE,
               "gateway_source_sha256": hashlib.sha256((HERE / "gateway.py").read_bytes()).hexdigest(),
+              "probe_source_sha256": hashlib.sha256((ROOT / "examples/probe.rs").read_bytes()).hexdigest(),
+              "adapter_source_sha256": hashlib.sha256(b"".join((HERE / name).read_bytes() for name in
+                  ("entrypoint.mjs", "discover.mjs", "gateway.py"))).hexdigest(),
               "platform": docker("image", "inspect", image, "--format", "{{.Os}}/{{.Architecture}}").stdout.strip(),
               "library_source_sha256": hashlib.sha256((ROOT / "src/lib.rs").read_bytes()).hexdigest()}
     try:

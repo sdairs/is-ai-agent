@@ -21,9 +21,17 @@ on:
       - tests/harnesses/watch.py
       - tests/harnesses/releases.py
       - tests/harnesses/compare.py
+      - tests/harnesses/inventory.py
+      - tests/harnesses/publish_inventory.py
+      - tests/harnesses/test_inventory.py
+      - examples/probe.rs
 
 permissions:
   contents: read
+
+concurrency:
+  group: harness-watch-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   matrix:
@@ -74,3 +82,57 @@ jobs:
           path: target/harness-watch/${{ matrix.harness }}/
           if-no-files-found: error
           retention-days: 90
+
+  inventory:
+    needs: [matrix, compare]
+    if: ${{ always() && needs.matrix.result == 'success' }}
+    name: Inventory and change report
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: watch-*
+          path: target/watch-evidence
+      - name: Generate descriptive inventory and review report
+        env:
+          HARNESS: ${{ inputs.harness || 'all' }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 tests/harnesses/inventory.py --artifacts target/watch-evidence --harness "$HARNESS" --run-url "$RUN_URL"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: inventory-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/harness-inventory/
+          if-no-files-found: error
+          retention-days: 90
+
+  propose-inventory:
+    needs: inventory
+    if: >-
+      ${{ always() && needs.inventory.result == 'success' &&
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+          github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+          (inputs.harness == '' || inputs.harness == 'all') &&
+          (inputs.candidate == '' || inputs.candidate == 'latest') }}
+    name: Propose inventory update and report meaningful changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: inventory-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/proposed-inventory
+      - name: Update only the inventory proposal and deduplicated observation issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tests/harnesses/publish_inventory.py --artifacts target/proposed-inventory

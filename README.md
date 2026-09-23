@@ -156,6 +156,9 @@ A separate [Saturday watcher](.github/workflows/harness-watch.yml) resolves the
 latest releases and compares fresh observations with each pin. It reports lost
 detection, newly detectable agents, new candidate variable names, and execution
 failures separately, retaining sanitized evidence for review.
+The [environment inventory](tests/harnesses/inventory/README.md) is a generated
+reference sheet kept separately from detector rules. Weekly changes propose an
+inventory-only PR; meaningful signal changes get a deduplicated investigation issue.
 
 ## License
 

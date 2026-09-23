@@ -71,11 +71,12 @@ class EvidenceTests(unittest.TestCase):
             self.assertFalse(all(run.verify_events(raw, "probe", {"agent": "pi"}).values()))
 
     def test_stale_nonce_and_extra_fields_rejected(self):
-        probe = {"schema": 3, "nonce": "new", "library_version": run.library_version(), "agent": "pi",
+        probe = {"schema": 4, "nonce": "new", "library_version": run.library_version(), "agent": "pi",
                  "signal": "AI_AGENT", "session_present": True,
                  "markers": {name: False for name in run.MARKERS},
                  "exact_markers": {name: False for name in run.EXACT_MARKERS},
-                 "session_matches": {name: False for name in run.SESSIONS}}
+                 "session_matches": {name: False for name in run.SESSIONS},
+                 "generic_markers": {"AGENT": None, "AI_AGENT": "pi"}}
         self.assertEqual(run.validate_probe(probe, "new"), probe)
         with self.assertRaises(ValueError):
             run.validate_probe(probe, "old")
@@ -83,6 +84,8 @@ class EvidenceTests(unittest.TestCase):
             run.validate_probe({**probe, "token": "dummy-sensitive-value"}, "new")
         with self.assertRaises(ValueError):
             run.validate_probe({**probe, "markers": {**probe["markers"], "OPENCODE": "dummy-sensitive-value"}}, "new")
+        with self.assertRaises(ValueError):
+            run.validate_probe({**probe, "generic_markers": {"AGENT": "sentinel-secret", "AI_AGENT": None}}, "new")
 
     def test_opencode_completion_is_correlated_to_command_and_output(self):
         def events(status="completed", command="probe", output='{"agent":"opencode"}', reason="stop"):

@@ -4,7 +4,7 @@ import { readFileSync, readlinkSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const validName = /^[A-Z_][A-Z0-9_]{0,95}$/;
+const validName = /^[A-Za-z_][A-Za-z0-9_]{0,95}$/;
 const executables = new Set(["agent-probe", "node", "bash", "sh", "dash", "zsh",
   "goose", "cline", "pi", "qwen", "opencode", "copilot", "crush", "codex", "claude", "gemini"]);
 

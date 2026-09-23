@@ -1,6 +1,6 @@
 //! Small, deliberately redacted probe for tests/harnesses. Never dump `Agent`
 //! with Debug: a matched signal can contain a credential in older releases.
-use is_ai_agent::{Signal, detect};
+use is_ai_agent::{Signal, detect, detect_with};
 use std::{env, fs::OpenOptions, io::Write};
 
 const MARKERS: &[&str] = &[
@@ -101,11 +101,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .collect::<Vec<_>>()
         .join(",");
+    // Classify each generic variable independently, even when another signal
+    // wins detection. Only library-owned canonical names leave the container.
+    let generic = ["AGENT", "AI_AGENT"]
+        .iter()
+        .map(|name| {
+            let recognized = detect_with(
+                |key| (key == *name).then(|| env::var(key).ok()).flatten(),
+                |_| false,
+            );
+            let identity = recognized.map_or("null".into(), |a| format!("\"{}\"", a.id.as_str()));
+            format!("\"{name}\":{identity}")
+        })
+        .collect::<Vec<_>>()
+        .join(",");
     let record = format!(
         concat!(
-            "{{\"schema\":3,\"nonce\":\"{}\",\"library_version\":\"{}\",",
+            "{{\"schema\":4,\"nonce\":\"{}\",\"library_version\":\"{}\",",
             "\"agent\":{},\"signal\":{},\"session_present\":{},",
-            "\"markers\":{{{}}},\"exact_markers\":{{{}}},\"session_matches\":{{{}}}}}\n"
+            "\"markers\":{{{}}},\"exact_markers\":{{{}}},\"session_matches\":{{{}}},\"generic_markers\":{{{}}}}}\n"
         ),
         args[2],
         env!("CARGO_PKG_VERSION"),
@@ -115,6 +129,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         markers,
         exact_markers,
         sessions,
+        generic,
     );
     // A stale or duplicated invocation cannot silently overwrite evidence.
     OpenOptions::new()
