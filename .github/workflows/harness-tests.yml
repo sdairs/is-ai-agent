@@ -40,9 +40,11 @@ jobs:
         run: |
           cargo fmt --check
           cargo test --locked
-          cargo clippy --lib -- -D warnings
+          cargo clippy --all-targets -- -D warnings
           cargo doc --no-deps
           rustfmt --edition 2024 --check tests/harnesses/probe.rs
+      - name: Audit detection against captured environments
+        run: python3 tests/harnesses/audit_detection.py
       - name: Verify published crate contents
         run: python3 .github/scripts/check-package.py
       - name: Check evidence verifiers and gateway

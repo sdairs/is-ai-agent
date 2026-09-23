@@ -6,10 +6,54 @@
 //!    (@vercel/detect-agent) env vars, when their value names a known agent.
 //! 2. Tool-specific env vars (`CLAUDECODE`, `CURSOR_AGENT`, ...).
 //! 3. Filesystem signals (e.g. `/opt/.devin`).
-//! 4. A bare truthy `AGENT`/`AI_AGENT` (e.g. `AGENT=1`) as a last resort,
+//! 4. An unknown name or bare true `AGENT`/`AI_AGENT` value (e.g. `AGENT=1`)
+//!    as a last resort,
 //!    resolving to [`AgentId::Unknown`]. Tool-specific vars outrank it so
 //!    agents that set both (e.g. OpenCode sets `AGENT=1` and `OPENCODE=1`)
 //!    are still identified.
+//!
+//! Blank generic values and the trimmed, case-insensitive values `0`, `false`,
+//! `no`, and `off` are ignored. They do not disable other detection rules.
+//! Known names are explicit caller assertions; `AGENT` takes priority over
+//! `AI_AGENT`, and both take priority over inherited tool markers.
+//!
+//! Additional harnesses use these narrow subprocess rules. Exact matches are
+//! case-sensitive and do not trim whitespace; nonblank IDs and paths retain
+//! their original value in the result.
+//!
+//! | Identity (generic slug; aliases) | Automatic signal | Session source |
+//! | --- | --- | --- |
+//! | DeepSeek Harness (`deepseek-harness`; `dsh`) | Exact `DSH_SHELL=1` | Nonblank `DSH_SESSION_ID`, only after identification |
+//! | Hermes Agent (`hermes-agent`; `hermes`) | Exact `HERMES_AGENT=true`, then nonblank `HERMES_SESSION_ID` | `HERMES_SESSION_ID` |
+//! | OpenClaw (`openclaw`) | Exact `OPENCLAW_SHELL=exec` | None |
+//! | Grok Build (`grok-build`) | Nonblank `GROK_SESSION_ID` | `GROK_SESSION_ID` |
+//! | Kilo Code (`kilo-code`; `kilo`, `kilocode`) | Exact `KILO=1`, before OpenCode | None |
+//! | Junie (`junie`) | Nonblank `JUNIE_SHIM_PATH` | None |
+//! | VTCode (`vtcode`) | Exact `VTCODE=1` | None |
+//!
+//! Claude Code additionally recognizes exact `CLAUDE_CODE_CHILD_SESSION=1`
+//! for tool/hook/statusline children; that marker does not cover stdio MCP.
+//! Codex recognizes a nonblank `CODEX_SESSION_ID` root ID, but its
+//! [`Agent::session_id`] still comes only from `CODEX_THREAD_ID`.
+//! `CODEX_VERSION` and `CODEX_PERMISSION_PROFILE` are metadata, not detection
+//! rules or permission guarantees. Pi recognizes a nonblank `PI_SESSION_ID`
+//! as both an identity fallback and session source. Its CLI/RPC process
+//! markers are not automatically set by SDK embedding, and human `!`/`!!`
+//! commands do not receive the shell-tool session injection.
+//! These additions retain existing compatibility signals and derivative
+//! precedence. `github_copilot_app_agent` is a whole-value generic alias for
+//! GitHub Copilot.
+//!
+//! Configuration and credentials are not execution markers: `COPILOT_MODEL`,
+//! `COPILOT_ALLOW_ALL`, `COPILOT_GITHUB_TOKEN`, `REPL_ID`, and `GROK_AGENT` do
+//! not trigger detection. Replit and the distinct legacy Grok CLI identity
+//! remain available through explicit generic names. A DeepSeek session ID
+//! alone also does not identify the harness: human Web UI terminals receive
+//! it too. Model choice, provider keys, and workspace settings are insufficient.
+//!
+//! Markers provide cooperative attribution and can be inherited. A match does
+//! not prove that a model initiated this particular command, and no match does
+//! not prove a human caller. Metadata is read afresh on every detection call.
 //!
 //! ```no_run
 //! if is_ai_agent::is_ai_agent() {
@@ -31,22 +75,33 @@ pub struct Agent {
     pub id: AgentId,
     pub name: &'static str,
     pub signal: Signal,
-    /// A stable identifier for the agent's current session/conversation, when
-    /// the agent exposes one to its subprocesses via an env var.
+    /// An opaque session, thread, task, or legacy correlation identifier
+    /// exposed by the detected agent. Its lifetime and namespace depend on the
+    /// harness; pair it with [`AgentId`] before comparing values. `None` when
+    /// no supported source is present.
     ///
-    /// The vendors call this variously a session, thread, or trace id; here it
-    /// is unified as "the identifier that correlates every tool invocation in
-    /// one agent run". It is opaque and only comparable within the same agent
-    /// — pair it with [`AgentId`] before correlating across surfaces. `None`
-    /// when the detected agent doesn't publish one (e.g. Gemini CLI, Crush,
-    /// and Grok CLI only expose it to hooks, not to ordinary subprocesses).
+    /// Codex uses `CODEX_THREAD_ID`; its shared root `CODEX_SESSION_ID` can
+    /// identify Codex but is never substituted here. DeepSeek Harness uses
+    /// `DSH_SESSION_ID` only after its identity is established. Hermes, Grok
+    /// Build, and Pi use `HERMES_SESSION_ID`, `GROK_SESSION_ID`, and
+    /// `PI_SESSION_ID` respectively. These sources must be nonblank and their
+    /// values are returned unchanged. `DSH_PTY_SESSION_ID`,
+    /// `HERMES_SESSION_THREAD_ID`, and `KILO_RUN_ID` are not session sources.
+    ///
+    /// Claude tool/hook children track `/clear`; a long-lived MCP server can
+    /// retain its startup session ID. Claude bridge/cloud IDs use different
+    /// namespaces. Existing Cursor trace and Warp run identifiers retain
+    /// their legacy behavior, with no guarantee of conversation-wide scope.
     pub session_id: Option<String>,
     /// The active [W3C Trace Context] `traceparent` value, when present in the
     /// environment — the raw header a subprocess can forward to keep
     /// downstream requests on the same distributed trace.
     ///
-    /// Of the agents covered here, Claude Code and Qwen Code propagate this
-    /// (both gated behind telemetry being enabled, and off by default).
+    /// Claude Code and Qwen Code can propagate this with telemetry enabled.
+    /// Claude tracing requires telemetry/enhanced tracing; a custom
+    /// `ANTHROPIC_BASE_URL` additionally requires
+    /// `CLAUDE_CODE_PROPAGATE_TRACEPARENT=1`. That propagation setting is not
+    /// unconditionally required for the direct route.
     /// Others may surface a `traceparent` only if one was already present in
     /// the ambient shell and inherited. Use [`Agent::trace_id`] for just the
     /// trace-id correlation key.
@@ -101,7 +156,20 @@ pub enum AgentId {
     Cowork,
     /// Tencent CodeBuddy, a Claude Code derivative.
     CodeBuddy,
+    /// Legacy Grok CLI identity, available through explicit generic aliases.
     GrokCli,
+    /// Official Grok Build; distinct from Grok CLI and Grok Bot.
+    GrokBuild,
+    /// DeepSeek Harness model tools, distinct from using a DeepSeek model.
+    DeepSeekHarness,
+    Hermes,
+    /// OpenClaw's `exec` tool subprocesses.
+    OpenClaw,
+    /// Kilo Code CLI, an OpenCode derivative.
+    KiloCode,
+    /// Shim-launched Junie execution.
+    Junie,
+    VTCode,
     /// Warp's agent mode (internally "Oz").
     Warp,
     Pi,
@@ -144,6 +212,13 @@ impl AgentId {
             AgentId::Cowork => "cowork",
             AgentId::CodeBuddy => "codebuddy",
             AgentId::GrokCli => "grok-cli",
+            AgentId::GrokBuild => "grok-build",
+            AgentId::DeepSeekHarness => "deepseek-harness",
+            AgentId::Hermes => "hermes-agent",
+            AgentId::OpenClaw => "openclaw",
+            AgentId::KiloCode => "kilo-code",
+            AgentId::Junie => "junie",
+            AgentId::VTCode => "vtcode",
             AgentId::Warp => "warp",
             AgentId::Pi => "pi",
             AgentId::Kiro => "kiro",
@@ -164,97 +239,185 @@ pub enum Signal {
     File { path: &'static str },
 }
 
-const TOOL_VARS: &[(&str, AgentId, &str)] = &[
+// Preserve the historical nonempty predicate on legacy rules. New markers
+// explicitly opt into their documented exact value or a nonblank opaque value.
+#[derive(Clone, Copy)]
+enum EnvRule {
+    Nonempty(&'static str),
+    Nonblank(&'static str),
+    Exact(&'static str, &'static str),
+}
+
+impl EnvRule {
+    fn read<E>(self, env: &E) -> Option<(&'static str, String)>
+    where
+        E: Fn(&str) -> Option<String>,
+    {
+        let (name, value) = match self {
+            Self::Nonempty(name) => (name, nonempty(env(name))?),
+            Self::Nonblank(name) => (name, nonblank(env(name))?),
+            Self::Exact(name, expected) => (name, env(name).filter(|v| v == expected)?),
+        };
+        Some((name, value))
+    }
+}
+
+use EnvRule::{Exact, Nonblank, Nonempty};
+
+const TOOL_VARS: &[(EnvRule, AgentId, &str)] = &[
     // Amp sets CLAUDECODE=1 for compatibility, so its own marker must be
     // checked before Claude Code's.
-    ("AMP_CURRENT_THREAD_ID", AgentId::Amp, "Amp"),
+    (Nonempty("AMP_CURRENT_THREAD_ID"), AgentId::Amp, "Amp"),
     // CodeBuddy is a Claude Code derivative that mirrors some CLAUDE_* vars
     // (CLAUDE_SESSION_ID, CLAUDE_PROJECT_DIR), so it precedes Claude Code.
-    ("CODEBUDDY", AgentId::CodeBuddy, "CodeBuddy"),
-    ("CODEBUDDY_SESSION_ID", AgentId::CodeBuddy, "CodeBuddy"),
-    ("CODEBUDDY_PROJECT_DIR", AgentId::CodeBuddy, "CodeBuddy"),
-    ("CLAUDE_CODE_IS_COWORK", AgentId::Cowork, "Claude Cowork"),
-    ("CLAUDECODE", AgentId::ClaudeCode, "Claude Code"),
-    ("CLAUDE_CODE_ENTRYPOINT", AgentId::ClaudeCode, "Claude Code"),
-    ("CLAUDE_CODE_SESSION_ID", AgentId::ClaudeCode, "Claude Code"),
-    ("CLAUDE_CODE_EXECPATH", AgentId::ClaudeCode, "Claude Code"),
+    (Nonempty("CODEBUDDY"), AgentId::CodeBuddy, "CodeBuddy"),
+    (
+        Nonempty("CODEBUDDY_SESSION_ID"),
+        AgentId::CodeBuddy,
+        "CodeBuddy",
+    ),
+    (
+        Nonempty("CODEBUDDY_PROJECT_DIR"),
+        AgentId::CodeBuddy,
+        "CodeBuddy",
+    ),
+    (
+        Nonempty("CLAUDE_CODE_IS_COWORK"),
+        AgentId::Cowork,
+        "Claude Cowork",
+    ),
+    (
+        Exact("CLAUDE_CODE_CHILD_SESSION", "1"),
+        AgentId::ClaudeCode,
+        "Claude Code",
+    ),
+    (Nonempty("CLAUDECODE"), AgentId::ClaudeCode, "Claude Code"),
+    (
+        Nonempty("CLAUDE_CODE_ENTRYPOINT"),
+        AgentId::ClaudeCode,
+        "Claude Code",
+    ),
+    (
+        Nonempty("CLAUDE_CODE_SESSION_ID"),
+        AgentId::ClaudeCode,
+        "Claude Code",
+    ),
+    (
+        Nonempty("CLAUDE_CODE_EXECPATH"),
+        AgentId::ClaudeCode,
+        "Claude Code",
+    ),
     // Set by both the Cursor CLI and the IDE's agent terminals, so it only
     // proves "some Cursor agent surface", not specifically the CLI.
-    ("CURSOR_AGENT", AgentId::Cursor, "Cursor"),
-    ("CURSOR_SANDBOX", AgentId::CursorCli, "Cursor CLI"),
+    (Nonempty("CURSOR_AGENT"), AgentId::Cursor, "Cursor"),
+    (Nonempty("CURSOR_SANDBOX"), AgentId::CursorCli, "Cursor CLI"),
     // Qwen Code and veCLI are Gemini CLI forks (both inherit GEMINI_CLI=1);
     // their own markers must precede Gemini's.
-    ("QWEN_CODE", AgentId::QwenCode, "Qwen Code"),
-    ("VECLI_SANDBOX", AgentId::VeCli, "veCLI"),
-    ("VECLI_DIR", AgentId::VeCli, "veCLI"),
-    ("GEMINI_CLI", AgentId::GeminiCli, "Gemini CLI"),
-    ("CODEX_THREAD_ID", AgentId::Codex, "OpenAI Codex"),
-    ("CODEX_SANDBOX", AgentId::Codex, "OpenAI Codex"),
+    (Nonempty("QWEN_CODE"), AgentId::QwenCode, "Qwen Code"),
+    (Nonempty("VECLI_SANDBOX"), AgentId::VeCli, "veCLI"),
+    (Nonempty("VECLI_DIR"), AgentId::VeCli, "veCLI"),
+    (Nonempty("GEMINI_CLI"), AgentId::GeminiCli, "Gemini CLI"),
+    (Nonempty("CODEX_THREAD_ID"), AgentId::Codex, "OpenAI Codex"),
+    (Nonempty("CODEX_SANDBOX"), AgentId::Codex, "OpenAI Codex"),
     (
-        "CODEX_SANDBOX_NETWORK_DISABLED",
+        Nonempty("CODEX_SANDBOX_NETWORK_DISABLED"),
         AgentId::Codex,
         "OpenAI Codex",
     ),
-    ("CODEX_CI", AgentId::Codex, "OpenAI Codex"),
-    ("ANTIGRAVITY_AGENT", AgentId::Antigravity, "Antigravity"),
+    (Nonempty("CODEX_CI"), AgentId::Codex, "OpenAI Codex"),
+    (Nonblank("CODEX_SESSION_ID"), AgentId::Codex, "OpenAI Codex"),
     (
-        "ANTIGRAVITY_PROJECT_ID",
+        Nonempty("ANTIGRAVITY_AGENT"),
         AgentId::Antigravity,
         "Antigravity",
     ),
-    ("AUGMENT_AGENT", AgentId::Augment, "Augment"),
-    ("CLINE_ACTIVE", AgentId::Cline, "Cline"),
-    ("CLINE_TASK_ID", AgentId::Cline, "Cline"),
+    (
+        Nonempty("ANTIGRAVITY_PROJECT_ID"),
+        AgentId::Antigravity,
+        "Antigravity",
+    ),
+    (Nonempty("AUGMENT_AGENT"), AgentId::Augment, "Augment"),
+    (Nonempty("CLINE_ACTIVE"), AgentId::Cline, "Cline"),
+    (Nonempty("CLINE_TASK_ID"), AgentId::Cline, "Cline"),
     // Roo Code sets no dedicated marker in its own source; ROO_CODE_TASK_ID
     // is the signal third-party detectors (dotnet SDK) key on.
-    ("ROO_CODE_TASK_ID", AgentId::RooCode, "Roo Code"),
-    ("CRUSH", AgentId::Crush, "Crush"),
-    ("IFLOW_CLI", AgentId::IflowCli, "iFlow CLI"),
-    ("GROK_AGENT", AgentId::GrokCli, "Grok CLI"),
-    ("OZ_RUN_ID", AgentId::Warp, "Warp"),
-    ("PI_CODING_AGENT", AgentId::Pi, "Pi"),
-    ("KIRO_AGENT_PATH", AgentId::Kiro, "Kiro"),
-    ("FIREBENDER_TERMINAL", AgentId::Firebender, "Firebender"),
+    (Nonempty("ROO_CODE_TASK_ID"), AgentId::RooCode, "Roo Code"),
+    (Nonempty("CRUSH"), AgentId::Crush, "Crush"),
+    (Nonempty("IFLOW_CLI"), AgentId::IflowCli, "iFlow CLI"),
+    (
+        Nonblank("GROK_SESSION_ID"),
+        AgentId::GrokBuild,
+        "Grok Build",
+    ),
+    (Nonempty("OZ_RUN_ID"), AgentId::Warp, "Warp"),
+    (Nonempty("PI_CODING_AGENT"), AgentId::Pi, "Pi"),
+    (Nonblank("PI_SESSION_ID"), AgentId::Pi, "Pi"),
+    (Nonempty("KIRO_AGENT_PATH"), AgentId::Kiro, "Kiro"),
+    (
+        Nonempty("FIREBENDER_TERMINAL"),
+        AgentId::Firebender,
+        "Firebender",
+    ),
+    // Kilo inherits OpenCode markers, so its own marker must win.
+    (Exact("KILO", "1"), AgentId::KiloCode, "Kilo Code"),
     // OpenCode's env markers may fail to propagate to spawned shells (it is
     // Bun-compiled, and Bun doesn't forward runtime process.env mutations),
     // hence the wide net.
-    ("OPENCODE", AgentId::OpenCode, "OpenCode"),
-    ("OPENCODE_PID", AgentId::OpenCode, "OpenCode"),
-    ("OPENCODE_BIN_PATH", AgentId::OpenCode, "OpenCode"),
-    ("OPENCODE_SERVER", AgentId::OpenCode, "OpenCode"),
-    ("OPENCODE_APP_INFO", AgentId::OpenCode, "OpenCode"),
-    ("OPENCODE_MODES", AgentId::OpenCode, "OpenCode"),
+    (Nonempty("OPENCODE"), AgentId::OpenCode, "OpenCode"),
+    (Nonempty("OPENCODE_PID"), AgentId::OpenCode, "OpenCode"),
+    (Nonempty("OPENCODE_BIN_PATH"), AgentId::OpenCode, "OpenCode"),
+    (Nonempty("OPENCODE_SERVER"), AgentId::OpenCode, "OpenCode"),
+    (Nonempty("OPENCODE_APP_INFO"), AgentId::OpenCode, "OpenCode"),
+    (Nonempty("OPENCODE_MODES"), AgentId::OpenCode, "OpenCode"),
     // No longer set in plain CLI/TUI use (only acp/desktop embeddings).
-    ("OPENCODE_CLIENT", AgentId::OpenCode, "OpenCode"),
-    ("TRAE_AI_SHELL_ID", AgentId::Trae, "TRAE AI"),
-    ("GOOSE_TERMINAL", AgentId::Goose, "Goose"),
-    ("REPL_ID", AgentId::Replit, "Replit"),
+    (Nonempty("OPENCODE_CLIENT"), AgentId::OpenCode, "OpenCode"),
+    (Nonempty("TRAE_AI_SHELL_ID"), AgentId::Trae, "TRAE AI"),
+    (Nonempty("GOOSE_TERMINAL"), AgentId::Goose, "Goose"),
     (
-        "COPILOT_AGENT_SESSION_ID",
+        Nonempty("COPILOT_AGENT_SESSION_ID"),
         AgentId::GitHubCopilot,
         "GitHub Copilot",
     ),
     // VS Code Copilot agent-mode terminals (kept alongside AI_AGENT).
-    ("COPILOT_AGENT", AgentId::GitHubCopilot, "GitHub Copilot"),
+    (
+        Nonempty("COPILOT_AGENT"),
+        AgentId::GitHubCopilot,
+        "GitHub Copilot",
+    ),
     // Copilot CLI and the Actions-based cloud coding agent.
-    ("COPILOT_CLI", AgentId::GitHubCopilot, "GitHub Copilot"),
     (
-        "COPILOT_AGENT_JOB_ID",
-        AgentId::GitHubCopilot,
-        "GitHub Copilot",
-    ),
-    // Inherited user config rather than injected markers — weaker signals.
-    ("COPILOT_MODEL", AgentId::GitHubCopilot, "GitHub Copilot"),
-    (
-        "COPILOT_ALLOW_ALL",
+        Nonempty("COPILOT_CLI"),
         AgentId::GitHubCopilot,
         "GitHub Copilot",
     ),
     (
-        "COPILOT_GITHUB_TOKEN",
+        Nonempty("COPILOT_AGENT_JOB_ID"),
         AgentId::GitHubCopilot,
         "GitHub Copilot",
     ),
+    (
+        Exact("DSH_SHELL", "1"),
+        AgentId::DeepSeekHarness,
+        "DeepSeek Harness",
+    ),
+    // The session ID fallback supports older Hermes versions.
+    (
+        Exact("HERMES_AGENT", "true"),
+        AgentId::Hermes,
+        "Hermes Agent",
+    ),
+    (
+        Nonblank("HERMES_SESSION_ID"),
+        AgentId::Hermes,
+        "Hermes Agent",
+    ),
+    (
+        Exact("OPENCLAW_SHELL", "exec"),
+        AgentId::OpenClaw,
+        "OpenClaw",
+    ),
+    (Nonblank("JUNIE_SHIM_PATH"), AgentId::Junie, "Junie"),
+    (Exact("VTCODE", "1"), AgentId::VTCode, "VTCode"),
 ];
 
 const FILE_SIGNALS: &[(&str, AgentId, &str)] = &[("/opt/.devin", AgentId::Devin, "Devin")];
@@ -274,6 +437,10 @@ const SESSION_ID_VARS: &[(AgentId, &[&str])] = &[
     // Amp sets both to the same thread id; AGENT_THREAD_ID is the fallback.
     (AgentId::Amp, &["AMP_CURRENT_THREAD_ID", "AGENT_THREAD_ID"]),
     (AgentId::QwenCode, &["QWEN_CODE_SESSION_ID"]),
+    (AgentId::DeepSeekHarness, &["DSH_SESSION_ID"]),
+    (AgentId::Hermes, &["HERMES_SESSION_ID"]),
+    (AgentId::GrokBuild, &["GROK_SESSION_ID"]),
+    (AgentId::Pi, &["PI_SESSION_ID"]),
     // Cursor exposes only a trace id; its per-session vs per-command scope is
     // undocumented, so callers correlating on it should expect possible churn.
     (AgentId::Cursor, &["CURSOR_TRACE_ID"]),
@@ -330,13 +497,13 @@ where
         }
     };
 
-    // Generic vars win outright when they name a known agent. A bare truthy
-    // value (`AGENT=1`) only proves *an* agent is present, so it is held as
+    // Generic vars win outright when they name a known agent. Unknown names
+    // and bare true values (`AGENT=1`) are held as
     // a fallback while the more specific signals below get a chance to
     // identify the tool — e.g. OpenCode sets both AGENT=1 and OPENCODE=1.
     let mut generic_fallback = None;
     for var in ["AGENT", "AI_AGENT"] {
-        if let Some(value) = nonempty(env(var)) {
+        if let Some(value) = generic_value(env(var)) {
             let (id, name) = classify_generic_value(&value);
             let agent = make(id, name, Signal::EnvVar { name: var, value });
             if id != AgentId::Unknown {
@@ -427,8 +594,8 @@ where
         }
     }
 
-    for &(var, id, name) in TOOL_VARS {
-        if let Some(value) = nonempty(env(var)) {
+    for &(rule, id, name) in TOOL_VARS {
+        if let Some((var, value)) = rule.read(&env) {
             return Some(make(id, name, Signal::EnvVar { name: var, value }));
         }
     }
@@ -452,11 +619,29 @@ where
         .iter()
         .find(|(agent, _)| *agent == id)
         .map(|(_, vars)| *vars)?;
-    vars.iter().find_map(|var| nonempty(env(var)))
+    vars.iter().find_map(|var| match id {
+        AgentId::DeepSeekHarness | AgentId::Hermes | AgentId::GrokBuild | AgentId::Pi => {
+            nonblank(env(var))
+        }
+        _ => nonempty(env(var)),
+    })
 }
 
 fn nonempty(v: Option<String>) -> Option<String> {
     v.filter(|s| !s.is_empty())
+}
+
+fn nonblank(v: Option<String>) -> Option<String> {
+    v.filter(|s| !s.trim().is_empty())
+}
+
+fn generic_value(v: Option<String>) -> Option<String> {
+    nonblank(v).filter(|s| {
+        !matches!(
+            s.trim().to_ascii_lowercase().as_str(),
+            "0" | "false" | "no" | "off"
+        )
+    })
 }
 
 /// Classify a generic `AGENT`/`AI_AGENT` value. The whole value is tried
@@ -497,9 +682,10 @@ fn classify_agent_value(value: &str) -> (AgentId, &'static str) {
         "replit" => (AgentId::Replit, "Replit"),
         "antigravity" => (AgentId::Antigravity, "Antigravity"),
         // VS Code's Copilot agent mode sets this whole string as the name.
-        "github-copilot" | "github-copilot-cli" | "github_copilot_vscode_agent" => {
-            (AgentId::GitHubCopilot, "GitHub Copilot")
-        }
+        "github-copilot"
+        | "github-copilot-cli"
+        | "github_copilot_vscode_agent"
+        | "github_copilot_app_agent" => (AgentId::GitHubCopilot, "GitHub Copilot"),
         "crush" => (AgentId::Crush, "Crush"),
         "qwen" | "qwen-code" | "qwencode" => (AgentId::QwenCode, "Qwen Code"),
         "iflow" | "iflow-cli" => (AgentId::IflowCli, "iFlow CLI"),
@@ -508,6 +694,13 @@ fn classify_agent_value(value: &str) -> (AgentId, &'static str) {
         "cowork" => (AgentId::Cowork, "Claude Cowork"),
         "codebuddy" => (AgentId::CodeBuddy, "CodeBuddy"),
         "grok" | "grok-cli" => (AgentId::GrokCli, "Grok CLI"),
+        "grok-build" => (AgentId::GrokBuild, "Grok Build"),
+        "deepseek-harness" | "dsh" => (AgentId::DeepSeekHarness, "DeepSeek Harness"),
+        "hermes-agent" | "hermes" => (AgentId::Hermes, "Hermes Agent"),
+        "openclaw" => (AgentId::OpenClaw, "OpenClaw"),
+        "kilo-code" | "kilo" | "kilocode" => (AgentId::KiloCode, "Kilo Code"),
+        "junie" => (AgentId::Junie, "Junie"),
+        "vtcode" => (AgentId::VTCode, "VTCode"),
         "warp" | "oz" => (AgentId::Warp, "Warp"),
         "pi" => (AgentId::Pi, "Pi"),
         "kiro" | "kiro-cli" => (AgentId::Kiro, "Kiro"),
@@ -834,7 +1027,12 @@ mod tests {
     /// environment fails here even if the per-var tests still pass.
     #[test]
     fn full_agent_environments_resolve_to_expected_identity() {
-        let cases: &[(&str, &[(&str, &str)], AgentId)] = &[
+        type Case = (
+            &'static str,
+            &'static [(&'static str, &'static str)],
+            AgentId,
+        );
+        let cases: &[Case] = &[
             (
                 // Amp ships Claude Code compat plus the generic var.
                 "amp",
@@ -933,9 +1131,9 @@ mod tests {
                 AgentId::CursorCli,
             ),
             (
-                // Grok's hooks mirror CLAUDE_PROJECT_DIR as a compat alias.
-                "grok",
-                &[("GROK_AGENT", "1"), ("CLAUDE_PROJECT_DIR", "/p")],
+                // Legacy Grok CLI is still available by explicit assertion.
+                "grok-cli",
+                &[("AGENT", "grok-cli"), ("CLAUDE_PROJECT_DIR", "/p")],
                 AgentId::GrokCli,
             ),
         ];
@@ -1006,7 +1204,6 @@ mod tests {
             ("ANTIGRAVITY_PROJECT_ID", AgentId::Antigravity),
             ("CODEBUDDY", AgentId::CodeBuddy),
             ("CLAUDE_CODE_IS_COWORK", AgentId::Cowork),
-            ("GROK_AGENT", AgentId::GrokCli),
             ("OZ_RUN_ID", AgentId::Warp),
             ("PI_CODING_AGENT", AgentId::Pi),
             ("KIRO_AGENT_PATH", AgentId::Kiro),
@@ -1100,17 +1297,16 @@ mod tests {
     }
 
     #[test]
-    fn replit_detected() {
-        let env = env_from(&[("REPL_ID", "x")]);
-        assert_eq!(detect_with(env, |_| false).unwrap().id, AgentId::Replit);
-    }
-
-    #[test]
-    fn github_copilot_detected_via_each_var() {
-        for var in ["COPILOT_MODEL", "COPILOT_ALLOW_ALL", "COPILOT_GITHUB_TOKEN"] {
-            let env = env_from(&[(var, "1")]);
-            let agent = detect_with(env, |_| false).unwrap();
-            assert_eq!(agent.id, AgentId::GitHubCopilot, "var={var}");
+    fn removed_configuration_and_workspace_vars_do_not_detect() {
+        for var in [
+            "COPILOT_MODEL",
+            "COPILOT_ALLOW_ALL",
+            "COPILOT_GITHUB_TOKEN",
+            "REPL_ID",
+            "GROK_AGENT",
+        ] {
+            let env = env_from(&[(var, "synthetic-value")]);
+            assert!(detect_with(env, |_| false).is_none(), "var={var}");
         }
     }
 
@@ -1290,6 +1486,13 @@ mod tests {
             AgentId::Cowork,
             AgentId::CodeBuddy,
             AgentId::GrokCli,
+            AgentId::GrokBuild,
+            AgentId::DeepSeekHarness,
+            AgentId::Hermes,
+            AgentId::OpenClaw,
+            AgentId::KiloCode,
+            AgentId::Junie,
+            AgentId::VTCode,
             AgentId::Warp,
             AgentId::Pi,
             AgentId::Kiro,
