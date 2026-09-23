@@ -1,0 +1,75 @@
+name: Harness environment collection
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Rust and test-runner checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Read pinned harness matrix
+        id: matrix
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, sys
+          sys.path.insert(0, "tests/harnesses")
+          import releases
+          with open('tests/harnesses/harnesses.json') as source:
+              harnesses = json.load(source)
+          matrix = releases.matrix(harnesses)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('matrix=' + json.dumps(matrix) + '\n')
+          PYTHON
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          components: rustfmt, clippy
+      - name: Check Rust
+        run: |
+          cargo fmt --check
+          cargo test --locked
+          cargo clippy --lib -- -D warnings
+          cargo doc --no-deps
+          rustfmt --edition 2024 --check tests/harnesses/probe.rs
+      - name: Verify published crate contents
+        run: python3 .github/scripts/check-package.py
+      - name: Check evidence verifiers and gateway
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 -m unittest discover -s tests/harnesses -p 'test_*.py'
+
+  harness:
+    needs: checks
+    name: ${{ matrix.harness }} @ ${{ matrix.version }} / Linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.checks.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Run real CLI against scripted provider
+        # No secrets, private configuration, provider login, or live inference.
+        run: python3 tests/harnesses/run.py --harness '${{ matrix.harness }}' --version '${{ matrix.version }}' --discover
+      - name: Upload validated evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: harness-${{ matrix.harness }}-${{ matrix.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/harness-runs/${{ matrix.harness }}/**/*.json
+          if-no-files-found: warn
+          retention-days: 14

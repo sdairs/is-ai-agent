@@ -1,0 +1,136 @@
+{
+  "pi": {
+    "package": "@earendil-works/pi-coding-agent",
+    "version": "0.87.1",
+    "executable": "pi",
+    "tool": "bash"
+  },
+  "qwen-code": {
+    "package": "@qwen-code/qwen-code",
+    "version": "0.24.4",
+    "executable": "qwen",
+    "tool": "run_shell_command"
+  },
+  "opencode": {
+    "package": "opencode-ai",
+    "version": "1.18.32",
+    "executable": "opencode",
+    "tool": "bash"
+  },
+  "github-copilot": {
+    "package": "@github/copilot",
+    "version": "1.0.88",
+    "executable": "copilot",
+    "tool": "bash",
+    "evidence": "provider"
+  },
+  "crush": {
+    "package": "@charmland/crush",
+    "version": "0.96.1",
+    "executable": "crush",
+    "tool": "bash",
+    "evidence": "provider"
+  },
+  "goose": {
+    "package": "goose",
+    "version": "1.52.0",
+    "executable": "goose",
+    "tool": "shell",
+    "evidence": "provider",
+    "assets": {
+      "arm64": {
+        "arch": "aarch64",
+        "sha256": "4584ba8840fc77c2f3e48758f45543c18f1c1293d704941a8eeb5220852ce653"
+      },
+      "x64": {
+        "arch": "x86_64",
+        "sha256": "fdc86653285a89f7dcad6e76736af1688ab2cde44661b089328b2fc40bb79f9f"
+      }
+    }
+  },
+  "cline": {
+    "package": "cline",
+    "version": "3.0.64",
+    "executable": "cline",
+    "tool": "run_commands",
+    "evidence": "provider"
+  },
+  "codex": {
+    "package": "@openai/codex",
+    "version": "0.156.1",
+    "executable": "codex",
+    "tool": "exec_command",
+    "evidence": "provider"
+  },
+  "claude-code": {
+    "package": "@anthropic-ai/claude-code",
+    "version": "2.1.280",
+    "executable": "claude",
+    "tool": "Bash",
+    "evidence": "provider"
+  },
+  "gemini-cli": {
+    "package": "@google/gemini-cli",
+    "version": "0.60.0",
+    "executable": "gemini",
+    "tool": "run_shell_command",
+    "evidence": "provider"
+  },
+  "deepseek-harness": {
+    "package": "@deepseek-ai/dsh",
+    "version": "0.1.5-rc.3",
+    "executable": "dsh",
+    "tool": "bash",
+    "evidence": "provider"
+  },
+  "kilo-code": {
+    "package": "@kilocode/cli",
+    "version": "7.7.9",
+    "executable": "kilo",
+    "tool": "bash",
+    "evidence": "provider"
+  },
+  "openclaw": {
+    "package": "openclaw",
+    "version": "2026.9.5",
+    "executable": "openclaw",
+    "tool": "exec",
+    "evidence": "provider"
+  },
+  "junie": {
+    "package": "@jetbrains/junie",
+    "version": "3110.7.0",
+    "executable": "junie",
+    "tool": "bash",
+    "evidence": "provider",
+    "reported_version": "26.9.7 (3110.7)"
+  },
+  "hermes-agent": {
+    "package": "hermes-agent",
+    "version": "0.21.4",
+    "executable": "hermes",
+    "tool": "terminal",
+    "evidence": "provider",
+    "source": {
+      "url": "https://codeload.github.com/NousResearch/hermes-agent/tar.gz/d337b736aa1e8ebecfab043842d13e4a2d2f48a3",
+      "sha256": "ba21ce727bcd05bfc60eedfbfcb63b260af99cb5c902d37efa31daa97227da4e"
+    }
+  },
+  "vtcode": {
+    "package": "vtcode",
+    "version": "0.169.1",
+    "executable": "vtcode",
+    "tool": "exec_command",
+    "evidence": "provider",
+    "assets": {
+      "arm64": {
+        "url": "https://github.com/vinhnx/VTCode/releases/download/0.169.1/vtcode-0.169.1-aarch64-unknown-linux-gnu.tar.gz",
+        "sha256": "6341f9651b07df620fa161862dfaa3ae21a555d9279a2c01fa3f55a3819bf56b"
+      },
+      "x64": {
+        "url": "https://github.com/vinhnx/VTCode/releases/download/0.169.1/vtcode-0.169.1-x86_64-unknown-linux-musl.tar.gz",
+        "sha256": "a2a3d2dbf20e1d925decd36cd6aad56c7341f8fc4fbff2d1eed9bf4db740b6d8"
+      }
+    }
+  }
+}
