@@ -13,7 +13,7 @@ Detection provides cooperative attribution from environment variables and a smal
 is-ai-agent = "0.5"
 ```
 
-The September detection refresh documented below is unreleased; see [release notes](RELEASE_NOTES.md).
+The detection refresh documented below is unreleased.
 
 ## Usage
 
@@ -164,7 +164,7 @@ Qwen Live Harness delegates to other coding harnesses. Its settings and `QWEN_CO
 
 ### Evidence and remaining gaps
 
-The [captured inventory](tests/harnesses/inventory/observed.json) records exact environments from real command tools using a scripted provider. The [detection audit](tests/harnesses/detection-audit.md) compares the existing and refreshed rules against it; the [discovery report](tests/harnesses/discovery.md) explains pinned versions, controls and limits. Six new identities were observed there: DeepSeek Harness, Hermes Agent, OpenClaw, Kilo Code, Junie and VTCode. Grok Build is supported from vendor documentation, without a live probe in this inventory. Source inspection and those controlled runs do not establish every installed version, operating system, IDE, human-command, nested or resumed-session path.
+The [captured inventory](tests/harnesses/inventory/observed.json) records exact environments from real command tools using a scripted provider. The [harness README](tests/harnesses/README.md) explains how to replay it against the detector; the [discovery report](tests/harnesses/discovery.md) explains pinned versions, controls and limits. Six new identities were observed there: DeepSeek Harness, Hermes Agent, OpenClaw, Kilo Code, Junie and VTCode. Grok Build is supported from vendor documentation, without a live probe in this inventory. Source inspection and those controlled runs do not establish every installed version, operating system, IDE, human-command, nested or resumed-session path.
 
 Cline CLI's observed wrapper/connector variables also appear in a non-agent command control. Goose 1.52.0 exposes generic `AGENT_SESSION_ID`, while its provider/model variables are inherited configuration. Those observations do not justify new identity rules; both detection gaps remain. Junie's shim path identifies launcher ancestry, and the attempted interactive human-command control was inconclusive. The retained legacy rules remain subject to separate evidence review, as recorded in [issue #5](https://github.com/sdairs/is-ai-agent/issues/5).
 
