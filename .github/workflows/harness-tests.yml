@@ -52,7 +52,7 @@ jobs:
           persist-credentials: false
       - name: Run real CLI against scripted provider
         # No secrets, private configuration, provider login, or live inference.
-        run: python3 tests/harnesses/run.py --harness '${{ matrix.harness }}' --mode mock ${{ matrix.expected_gap && '--expect-undetected' || '' }}
+        run: python3 tests/harnesses/run.py --harness '${{ matrix.harness }}' --mode mock --discover ${{ matrix.expected_gap && '--expect-undetected' || '' }}
       - name: Upload sanitized evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

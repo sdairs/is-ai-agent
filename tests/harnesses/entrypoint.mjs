@@ -2,7 +2,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
-const [harness, prompt] = process.argv.slice(2);
+const [harness, prompt, discoveryNonce] = process.argv.slice(2);
 const env = { ...process.env, HOME: "/tmp", XDG_CONFIG_HOME: "/tmp/config",
   XDG_DATA_HOME: "/tmp/data", XDG_CACHE_HOME: "/tmp/cache", XDG_STATE_HOME: "/tmp/state" };
 const write = (path, data) => writeFileSync(path, JSON.stringify(data));
@@ -104,4 +104,24 @@ requires_openai_auth = false
 }
 // Replace the configuration launcher so the CLI owns the container process
 // and Docker observes its real exit status, including internal relaunches.
+if (discoveryNonce) {
+  if (!/^[a-f0-9]{32}$/.test(discoveryNonce)) throw new Error("Invalid discovery nonce");
+  // This baseline includes provider settings but precedes agent startup. It is
+  // never mounted on the host, returned to the provider, or uploaded as evidence.
+  writeFileSync("/tmp/probe-baseline.json", JSON.stringify(env), { mode: 0o600, flag: "wx" });
+  execFileSync("/usr/local/bin/agent-probe", ["/artifacts/configured.json", discoveryNonce, "--discover"],
+    { env, stdio: "pipe" });
+  if (harness === "cline") {
+    // Exercise a real non-agent CLI command. Replace only its npx dependency
+    // with a probe: do not download skills@latest or alter Cline's code.
+    mkdirSync("/tmp/probe-bin");
+    writeFileSync("/tmp/probe-bin/npx", `#!/bin/sh
+[ "$#" = 3 ] && [ "$1" = -y ] && [ "$2" = skills@latest ] && [ "$3" = list ] || exit 97
+exec /usr/local/bin/agent-probe /artifacts/nonagent.json ${discoveryNonce} --discover
+`, { mode: 0o755 });
+    execFileSync("/usr/local/bin/cline", ["skill", "list"], {
+      env: { ...env, PATH: `/tmp/probe-bin:${env.PATH}` }, stdio: "pipe",
+    });
+  }
+}
 process.execve(`/usr/local/bin/${command}`, [command, ...args], env);

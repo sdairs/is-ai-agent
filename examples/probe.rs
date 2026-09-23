@@ -40,8 +40,11 @@ fn nonblank(name: &str) -> Option<String> {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = env::args().collect();
-    if args.len() != 3 || args[2].len() != 32 || !args[2].bytes().all(|b| b.is_ascii_hexdigit()) {
-        return Err("usage: probe OUTPUT_FILE 32_HEX_NONCE".into());
+    if !(args.len() == 3 || (args.len() == 4 && args[3] == "--discover"))
+        || args[2].len() != 32
+        || !args[2].bytes().all(|b| b.is_ascii_hexdigit())
+    {
+        return Err("usage: probe OUTPUT_FILE 32_HEX_NONCE [--discover]".into());
     }
     let agent = detect();
     // These strings come from library constants, never from environment values.
@@ -90,5 +93,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .open(&args[1])?
         .write_all(record.as_bytes())?;
     print!("{record}");
+    if args.len() == 4 {
+        // Installed only in the isolated test image. A separate artifact keeps
+        // the detector contract and diagnostic observations distinct.
+        let status = std::process::Command::new("/usr/local/bin/node")
+            .args([
+                "/opt/discover.mjs",
+                &format!("{}.discovery.json", args[1]),
+                &args[2],
+            ])
+            .status()?;
+        if !status.success() {
+            return Err("discovery failed".into());
+        }
+    }
     Ok(())
 }

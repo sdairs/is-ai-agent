@@ -1,0 +1,314 @@
+{
+  "schema": 2,
+  "mode": "mock",
+  "harness": "goose",
+  "harness_version": "1.51.0",
+  "timestamp": "2026-09-23T14:55:14.173662+00:00",
+  "run_id": "9a9d7dfb0077490fa9463886a0ca758c",
+  "scope": "Linux noninteractive CLI shell tool; no PTY, SDK, MCP, resume, or human-command coverage",
+  "image_id": "sha256:3ff9fc252aa08233d58df32c75f2b18efd8f7102ff0292aae8b4bfcfb6d96dae",
+  "build_sha256": "8973a15251113dbc62943a9cbf7134adcb16ac26f36df8579a2e2874c73a1629",
+  "gateway_image": "python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea",
+  "gateway_source_sha256": "fdf5c5e3a94ff6d5a006b91e948535cead9b36ba223986e61de429148b3dfe65",
+  "platform": "linux/arm64",
+  "library_source_sha256": "1a987322b69951a55ce7abbb39da6b13873e3bc72ab72e8cef62e9a2daddfe3a",
+  "stage": "complete",
+  "control": {
+    "schema": 2,
+    "nonce": "52b5c4a4082d4512be6a307211e920fc",
+    "library_version": "0.5.0",
+    "agent": null,
+    "signal": null,
+    "session_present": false,
+    "markers": {
+      "PI_CODING_AGENT": false,
+      "PI_SESSION_ID": false,
+      "QWEN_CODE": false,
+      "GEMINI_CLI": false,
+      "QWEN_CODE_SESSION_ID": false,
+      "OPENCODE": false,
+      "OPENCODE_PID": false,
+      "COPILOT_CLI": false,
+      "COPILOT_AGENT": false,
+      "COPILOT_AGENT_SESSION_ID": false,
+      "CRUSH": false,
+      "GOOSE_TERMINAL": false,
+      "CLINE_ACTIVE": false,
+      "CLINE_TASK_ID": false,
+      "CODEX_THREAD_ID": false,
+      "CODEX_SESSION_ID": false,
+      "CODEX_SANDBOX": false,
+      "CLAUDECODE": false,
+      "CLAUDE_CODE_CHILD_SESSION": false,
+      "CLAUDE_CODE_SESSION_ID": false
+    },
+    "session_matches": {
+      "PI_SESSION_ID": false,
+      "QWEN_CODE_SESSION_ID": false,
+      "COPILOT_AGENT_SESSION_ID": false,
+      "CLINE_TASK_ID": false,
+      "CODEX_THREAD_ID": false,
+      "CLAUDE_CODE_SESSION_ID": false
+    }
+  },
+  "container_exit_code": 0,
+  "probe": {
+    "schema": 2,
+    "nonce": "52b5c4a4082d4512be6a307211e920fc",
+    "library_version": "0.5.0",
+    "agent": null,
+    "signal": null,
+    "session_present": false,
+    "markers": {
+      "PI_CODING_AGENT": false,
+      "PI_SESSION_ID": false,
+      "QWEN_CODE": false,
+      "GEMINI_CLI": false,
+      "QWEN_CODE_SESSION_ID": false,
+      "OPENCODE": false,
+      "OPENCODE_PID": false,
+      "COPILOT_CLI": false,
+      "COPILOT_AGENT": false,
+      "COPILOT_AGENT_SESSION_ID": false,
+      "CRUSH": false,
+      "GOOSE_TERMINAL": false,
+      "CLINE_ACTIVE": false,
+      "CLINE_TASK_ID": false,
+      "CODEX_THREAD_ID": false,
+      "CODEX_SESSION_ID": false,
+      "CODEX_SANDBOX": false,
+      "CLAUDECODE": false,
+      "CLAUDE_CODE_CHILD_SESSION": false,
+      "CLAUDE_CODE_SESSION_ID": false
+    },
+    "session_matches": {
+      "PI_SESSION_ID": false,
+      "QWEN_CODE_SESSION_ID": false,
+      "COPILOT_AGENT_SESSION_ID": false,
+      "CLINE_TASK_ID": false,
+      "CODEX_THREAD_ID": false,
+      "CLAUDE_CODE_SESSION_ID": false
+    }
+  },
+  "execution": {
+    "exact_probe_command": true,
+    "tool_completed": true,
+    "tool_output_matches_artifact": true,
+    "agent_settled": true,
+    "discovery_matches_tool_output": true
+  },
+  "configured_control": {
+    "schema": 2,
+    "nonce": "52b5c4a4082d4512be6a307211e920fc",
+    "library_version": "0.5.0",
+    "agent": null,
+    "signal": null,
+    "session_present": false,
+    "markers": {
+      "PI_CODING_AGENT": false,
+      "PI_SESSION_ID": false,
+      "QWEN_CODE": false,
+      "GEMINI_CLI": false,
+      "QWEN_CODE_SESSION_ID": false,
+      "OPENCODE": false,
+      "OPENCODE_PID": false,
+      "COPILOT_CLI": false,
+      "COPILOT_AGENT": false,
+      "COPILOT_AGENT_SESSION_ID": false,
+      "CRUSH": false,
+      "GOOSE_TERMINAL": false,
+      "CLINE_ACTIVE": false,
+      "CLINE_TASK_ID": false,
+      "CODEX_THREAD_ID": false,
+      "CODEX_SESSION_ID": false,
+      "CODEX_SANDBOX": false,
+      "CLAUDECODE": false,
+      "CLAUDE_CODE_CHILD_SESSION": false,
+      "CLAUDE_CODE_SESSION_ID": false
+    },
+    "session_matches": {
+      "PI_SESSION_ID": false,
+      "QWEN_CODE_SESSION_ID": false,
+      "COPILOT_AGENT_SESSION_ID": false,
+      "CLINE_TASK_ID": false,
+      "CODEX_THREAD_ID": false,
+      "CLAUDE_CODE_SESSION_ID": false
+    }
+  },
+  "discovery": {
+    "configured": {
+      "schema": 1,
+      "nonce": "52b5c4a4082d4512be6a307211e920fc",
+      "environment": {
+        "GOOSE_DISABLE_KEYRING": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "GOOSE_MAX_TURNS": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "GOOSE_MODE": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "GOOSE_MODEL": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "GOOSE_PROVIDER": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENAI_API_KEY": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENAI_HOST": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        }
+      },
+      "ancestry": [
+        "agent-probe",
+        "node"
+      ]
+    },
+    "agent": {
+      "schema": 1,
+      "nonce": "52b5c4a4082d4512be6a307211e920fc",
+      "environment": {
+        "AGENT_SESSION_ID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GOOSE_DISABLE_KEYRING": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "GOOSE_MAX_TURNS": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "GOOSE_MODE": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "GOOSE_MODEL": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "GOOSE_PROVIDER": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENAI_API_KEY": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENAI_HOST": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "ancestry": [
+        "agent-probe",
+        "goose"
+      ]
+    }
+  },
+  "checks": {
+    "plain_shell_not_detected": true,
+    "real_shell_tool_executed": true,
+    "harness_identified": false,
+    "harness_exported_markers": false,
+    "session_contract": true,
+    "configured_environment_not_detected": true
+  },
+  "status": "known-gap",
+  "known_gap": "The pinned CLI executes the probe but supplies none of the expected identity markers."
+}

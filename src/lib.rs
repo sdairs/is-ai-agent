@@ -1000,6 +1000,25 @@ mod tests {
     }
 
     #[test]
+    fn discovered_launch_metadata_is_not_agent_identity() {
+        // Real Goose 1.51.0 tools add this generic ID, but it does not name
+        // Goose. Provider settings also exist before the harness starts.
+        let env = env_from(&[("AGENT_SESSION_ID", "opaque"), ("GOOSE_PROVIDER", "openai")]);
+        assert!(detect_with(env, |_| false).is_none());
+
+        // Cline CLI 3.0.64 exports both to agent tools AND `cline skill list`
+        // children. Treating either as agent evidence would be a false positive.
+        let env = env_from(&[
+            ("CLINE_WRAPPER_PATH", "/somewhere/cline"),
+            (
+                "CLINE_CONNECTOR_CLI_LAUNCH",
+                r#"{"launcher":"cline","connectArgsPrefix":["connect"],"cwd":"/work"}"#,
+            ),
+        ]);
+        assert!(detect_with(env, |_| false).is_none());
+    }
+
+    #[test]
     fn new_tool_vars_detected() {
         for (var, expected) in [
             ("CRUSH", AgentId::Crush),

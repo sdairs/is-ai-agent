@@ -97,6 +97,13 @@ same identity gap. The committed adapter uses a normal saved session.
 Sanitized local snapshots: [Goose](evidence/goose-1.51.0-mock.json) and
 [Cline](evidence/cline-3.0.64-mock.json).
 
+Our [discovery investigation](discovery.md) compares configured, agent-tool and
+non-agent environments. Goose adds a generic `AGENT_SESSION_ID`; Cline adds
+launcher variables that also appear in a non-agent `cline skill list` child.
+Neither observation justifies a new default identity rule. The reusable
+`--discover` mode records redacted environment differences and diagnostic process
+ancestry so we can find and evaluate signals ourselves.
+
 Running either adapter normally exits nonzero and reports `fail`. CI explicitly
 uses the documented observation mode:
 
@@ -119,6 +126,8 @@ adapter to an ordinary detection test.
 pull requests, pushes to `main`, and manual dispatch. A separate matrix job runs
 each harness; one failure does not cancel the others. It also runs Rust tests,
 formatting, Clippy, documentation generation, and the Python verifier/gateway tests.
+Every matrix job enables `--discover`, including its configured-environment
+negative control and Cline's non-agent command control.
 
 [The release workflow](../../.github/workflows/release.yml) calls the same
 reusable workflow and requires it to pass **before publishing to crates.io**.
@@ -135,6 +144,9 @@ The runner writes `report.json`, `probe.json` and `control.json` under
 `target/harness-runs/<harness>/<run-id>/`, already ignored by Git. Reports include
 version, image ID, platform, source/build fingerprints and individual checks.
 Containers and private networks are removed after each run; images remain cached.
+Discovery adds `discovery.json`, `configured_control.json`, and (for Cline)
+`non_agent_control.json`. It is also available locally for any mock adapter:
+`python3 tests/harnesses/run.py --harness pi --discover`.
 
 ## Credentials and artifacts
 
@@ -147,11 +159,15 @@ there; it is size-limited and disappears with the container. They have a read-on
 root filesystem, an unprivileged user, no Docker socket,
 and an internal network without an external route. No host ports are published.
 
-The probe exports only constant identity/signal names and booleans. It never
+The detection probe exports only constant identity/signal names and booleans. It never
 exports full environments, matched signal values, session IDs, trace IDs, model
 credentials, or `Debug` output. This matters because the legacy detector can
 still copy `COPILOT_GITHUB_TOKEN` into a signal; removing that rule is separate
 work in [issue #5](https://github.com/sdairs/is-ai-agent/issues/5).
+Discovery additionally exports valid environment variable names, change categories,
+nonblank booleans and allowlisted executable names. Its raw comparison baseline
+stays in the disposable container tmpfs; values, hashes, paths and process
+arguments are never included in artifacts. Discovery is disabled in live mode.
 
 Raw CLI transcripts are processed in memory and discarded. Docker runtime logs
 are disabled. Unknown artifact fields and non-boolean marker values are rejected.

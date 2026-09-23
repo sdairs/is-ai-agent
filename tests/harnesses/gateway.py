@@ -120,7 +120,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.evidence["final_responses"] += 1
         else:
             prompt = " ".join(str(m.get("content", "")) for m in messages if m.get("role") == "user")
-            command = re.search(r"/usr/local/bin/agent-probe /artifacts/agent.json [0-9a-f]{32}", prompt)
+            command = re.search(r"/usr/local/bin/agent-probe /artifacts/agent.json [0-9a-f]{32}(?: --discover)?", prompt)
             if not command:
                 return self.error(400)
             tool = shell_tools[0]
@@ -185,7 +185,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def select(self, tools, prompt):
         tool = next((t for t in tools if self.is_shell(t.get("name", ""))), None)
-        command = re.search(r"/usr/local/bin/agent-probe /artifacts/agent.json [0-9a-f]{32}", json.dumps(prompt))
+        command = re.search(r"/usr/local/bin/agent-probe /artifacts/agent.json [0-9a-f]{32}(?: --discover)?", json.dumps(prompt))
         if not tool or not command:
             return None
         self.record_call(tool["name"], command[0])

@@ -1,6 +1,7 @@
 """Verify rejection of false evidence and credential handling, without a model."""
 import io
 import json
+import subprocess
 import threading
 import unittest
 import urllib.request
@@ -69,6 +70,39 @@ class EvidenceTests(unittest.TestCase):
         for options in [{}, {"call_id": "wrong"}, {"failed": True}, {"output": "done"}]:
             checked = run.verify_events(events(**options), "probe", {"agent": "qwen-code"}, "qwen-code")
             self.assertEqual(all(checked.values()), not options)
+
+
+class DiscoveryTests(unittest.TestCase):
+    def test_environment_diff_keeps_names_and_classification_only(self):
+        script = '''import { compareEnvironment } from "./tests/harnesses/discover.mjs";
+const before = { SAME: "sentinel-secret", CHANGED: "old-secret", REMOVED: "old-secret" };
+const after = { SAME: "sentinel-secret", CHANGED: "new-secret", NEW_SESSION: "private-id",
+  API_KEY: "sensitive-token", EMPTY: "  ", "invalid-name/private-id": "secret" };
+console.log(JSON.stringify(compareEnvironment(before, after)));'''
+        result = subprocess.run(["node", "--input-type=module", "-e", script], cwd=run.ROOT,
+                                capture_output=True, text=True, check=True)
+        self.assertEqual(json.loads(result.stdout), {
+            "SAME": {"change": "unchanged", "nonblank": True},
+            "CHANGED": {"change": "changed", "nonblank": True},
+            "REMOVED": {"change": "removed", "nonblank": False},
+            "NEW_SESSION": {"change": "added", "nonblank": True},
+            "API_KEY": {"change": "added", "nonblank": True},
+            "EMPTY": {"change": "added", "nonblank": False},
+        })
+        for secret in ["sentinel-secret", "old-secret", "new-secret", "private-id", "sensitive-token"]:
+            self.assertNotIn(secret, result.stdout)
+
+    def test_unknown_fields_values_paths_and_stale_discovery_are_rejected(self):
+        record = {"schema": 1, "nonce": "fresh", "environment": {
+            "API_KEY": {"change": "added", "nonblank": True}}, "ancestry": ["agent-probe", "goose"]}
+        self.assertEqual(run.validate_discovery(record, "fresh"), record)
+        for changed in [{"nonce": "stale"}, {"argv": "secret"}, {"ancestry": ["/private/goose"]},
+                        {"ancestry": [{}]}, {"ancestry": []},
+                        {"environment": {"API_KEY": {"change": "added", "nonblank": "secret"}}},
+                        {"environment": {"API_KEY": {"change": "added", "nonblank": True, "value": "secret"}}},
+                        {"environment": {"bad-name": {"change": "added", "nonblank": True}}}]:
+            with self.subTest(changed=changed), self.assertRaises(ValueError):
+                run.validate_discovery({**record, **changed}, "fresh")
 
 
 class GatewayTests(unittest.TestCase):
@@ -171,14 +205,16 @@ class ProviderEvidenceTests(unittest.TestCase):
     def test_known_gap_cannot_hide_execution_failures_or_unexpected_detection(self):
         spec = {"known_gap": "Pinned CLI has no marker", "markers": ["CLINE_ACTIVE"]}
         probe = {"agent": None, "signal": None, "session_present": False, "markers": {"CLINE_ACTIVE": False}}
-        checks = {"plain_shell_not_detected": True, "real_shell_tool_executed": True, "harness_identified": False}
+        checks = {"plain_shell_not_detected": True, "real_shell_tool_executed": True, "harness_identified": False,
+                  "configured_environment_not_detected": True, "non_agent_command_not_detected": True}
         report = {"checks": checks, "probe": probe}
         self.assertEqual(run.classify_result(report, spec), "fail")
         self.assertEqual(run.classify_result(report, spec, True), "known-gap")
         for changed in [{"agent": "cline"}, {"signal": "CLINE_ACTIVE"}, {"session_present": True},
                         {"markers": {"CLINE_ACTIVE": True}}]:
             self.assertEqual(run.classify_result({**report, "probe": {**probe, **changed}}, spec, True), "fail")
-        for name in ["plain_shell_not_detected", "real_shell_tool_executed"]:
+        for name in ["plain_shell_not_detected", "real_shell_tool_executed", "configured_environment_not_detected",
+                     "non_agent_command_not_detected"]:
             self.assertEqual(run.classify_result({**report, "checks": {**checks, name: False}}, spec, True), "fail")
         self.assertEqual(run.classify_result(report, {**spec, "known_gap": None}, True), "fail")
 
@@ -204,7 +240,7 @@ class GatewayHTTPTests(unittest.TestCase):
             return response.read().decode()
 
     def test_all_four_protocols_produce_and_observe_a_real_tool_roundtrip(self):
-        command = "/usr/local/bin/agent-probe /artifacts/agent.json " + "b" * 32
+        command = "/usr/local/bin/agent-probe /artifacts/agent.json " + "b" * 32 + " --discover"
         probe = {"agent": "test", "nonce": "b" * 32}
         output = json.dumps(probe)
         parameters = {"type": "object", "properties": {"command": {"type": "string"}}}

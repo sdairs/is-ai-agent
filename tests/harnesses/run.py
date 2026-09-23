@@ -18,13 +18,39 @@ HERE = Path(__file__).resolve().parent
 HARNESS = json.loads((HERE / "harnesses.json").read_text())
 GATEWAY_IMAGE = "python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea"
 BUILD_FILES = ["Cargo.toml", "Cargo.lock", "src/lib.rs", "examples/detect.rs", "examples/probe.rs",
-               "tests/harnesses/install.mjs", "tests/harnesses/Dockerfile", "tests/harnesses/entrypoint.mjs", "tests/harnesses/harnesses.json"]
+               "tests/harnesses/install.mjs", "tests/harnesses/Dockerfile", "tests/harnesses/entrypoint.mjs", "tests/harnesses/discover.mjs", "tests/harnesses/harnesses.json"]
 MARKERS = {"PI_CODING_AGENT", "PI_SESSION_ID", "QWEN_CODE", "GEMINI_CLI",
            "QWEN_CODE_SESSION_ID", "OPENCODE", "OPENCODE_PID",
            "COPILOT_CLI", "COPILOT_AGENT", "COPILOT_AGENT_SESSION_ID", "CRUSH", "GOOSE_TERMINAL",
            "CLINE_ACTIVE", "CLINE_TASK_ID", "CODEX_THREAD_ID", "CODEX_SESSION_ID", "CODEX_SANDBOX",
            "CLAUDECODE", "CLAUDE_CODE_CHILD_SESSION", "CLAUDE_CODE_SESSION_ID"}
 SESSIONS = {"PI_SESSION_ID", "QWEN_CODE_SESSION_ID", "COPILOT_AGENT_SESSION_ID", "CLINE_TASK_ID", "CODEX_THREAD_ID", "CLAUDE_CODE_SESSION_ID"}
+EXECUTABLES = {"agent-probe", "node", "bash", "sh", "dash", "zsh", "goose", "cline", "pi", "qwen",
+               "opencode", "copilot", "crush", "codex", "claude", "gemini", "other", "unavailable"}
+
+
+def validate_discovery(value, nonce):
+    if (not isinstance(value, dict) or set(value) != {"schema", "nonce", "environment", "ancestry"}
+            or value["schema"] != 1 or value["nonce"] != nonce):
+        raise ValueError("Invalid discovery artifact")
+    environment = value["environment"]
+    if not isinstance(environment, dict) or len(environment) > 256:
+        raise ValueError("Invalid discovery environment")
+    for name, info in environment.items():
+        if (not re.fullmatch(r"[A-Z_][A-Z0-9_]{0,95}", name) or not isinstance(info, dict)
+                or set(info) != {"change", "nonblank"} or type(info["nonblank"]) is not bool
+                or not isinstance(info["change"], str) or info["change"] not in {"added", "removed", "changed", "unchanged"}):
+            raise ValueError("Invalid discovery fields")
+    if (not isinstance(value["ancestry"], list) or not 1 <= len(value["ancestry"]) <= 16
+            or any(not isinstance(name, str) or name not in EXECUTABLES for name in value["ancestry"])):
+        raise ValueError("Invalid discovery ancestry")
+    return value
+
+
+def read_artifact(path, nonce, validator=validate_discovery):
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 32768:
+        raise ValueError("Artifact missing or invalid")
+    return validator(json.loads(path.read_text()), nonce)
 
 
 def build_fingerprint():
@@ -155,6 +181,8 @@ def classify_result(report, spec, expect_undetected=False):
         # A pinned known gap is an explicit observation, never a detection pass.
         # Do not accept tool failures, unexpected attribution, or new markers.
         expected = (spec.get("known_gap") and checks["plain_shell_not_detected"]
+                    and checks.get("configured_environment_not_detected", True)
+                    and checks.get("non_agent_command_not_detected", True)
                     and checks["real_shell_tool_executed"] and probe["agent"] is None
                     and probe["signal"] is None and not probe["session_present"]
                     and not any(probe["markers"][name] for name in spec["markers"]))
@@ -164,6 +192,8 @@ def classify_result(report, spec, expect_undetected=False):
 
 def run(args):
     spec = HARNESS[args.harness]
+    if args.discover and args.mode != "mock":
+        raise ValueError("Discovery is restricted to credential-free mock mode")
     if args.expect_undetected and (not spec.get("known_gap") or args.mode != "mock"):
         raise ValueError("--expect-undetected only applies to documented mock-mode detection gaps")
     image = f"is-ai-agent-test-{args.harness}:{spec['version']}"
@@ -197,6 +227,8 @@ def run(args):
               "--pids-limit=128", "--memory=2g", "--cpus=2", "--log-driver=none"]
     nonce = uuid.uuid4().hex
     command = f"/usr/local/bin/agent-probe /artifacts/agent.json {nonce}"
+    if args.discover:
+        command += " --discover"
     report = {"schema": 2, "mode": args.mode, "harness": args.harness, "harness_version": spec["version"],
               "timestamp": datetime.now(timezone.utc).isoformat(), "run_id": run_id,
               "scope": "Linux noninteractive CLI shell tool; no PTY, SDK, MCP, resume, or human-command coverage",
@@ -257,7 +289,7 @@ def run(args):
             docker("create", "--name", agent, *common, "--network", "container:" + gateway if args.harness == "gemini-cli" else network,
                    "--mount", f"type=bind,src={agent_dir},dst=/artifacts", image, args.harness,
                    "Run exactly this command once using the shell tool, then stop. Do not set any environment variables, "
-                   "edit files, or run any other command: " + command)
+                   "edit files, or run any other command: " + command, *([nonce] if args.discover else []))
             report["stage"] = "agent"
             result = docker("start", "--attach", agent, check=False, timeout=150)
             report["container_exit_code"] = int(docker("inspect", agent, "--format", "{{.State.ExitCode}}").stdout)
@@ -273,6 +305,21 @@ def run(args):
                 report["execution"] = verify_provider(json.loads(evidence), command, report["probe"], spec["tool"])
             else:
                 report["execution"] = verify_events(result.stdout, command, report["probe"], args.harness)
+            if args.discover:
+                report["configured_control"] = read_artifact(agent_dir / "configured.json", nonce, validate_probe)
+                report["discovery"] = {
+                    "configured": read_artifact(agent_dir / "configured.json.discovery.json", nonce),
+                    "agent": read_artifact(agent_dir / "agent.json.discovery.json", nonce),
+                }
+                if spec.get("evidence") == "provider":
+                    observed = verify_provider(json.loads(evidence), command, report["discovery"]["agent"], spec["tool"])
+                else:
+                    observed = verify_events(result.stdout, command, report["discovery"]["agent"], args.harness)
+                report["execution"]["discovery_matches_tool_output"] = all(observed.values())
+                if args.harness == "cline":
+                    report["non_agent_control"] = read_artifact(agent_dir / "nonagent.json", nonce, validate_probe)
+                    report["discovery"]["non_agent"] = read_artifact(agent_dir / "nonagent.json.discovery.json", nonce)
+                    report["discovery"]["non_agent_surface"] = "cline skill list; npx dependency replaced by argument-checking probe; no agent turn"
 
         p = report["probe"]
         report["checks"] = {
@@ -282,6 +329,10 @@ def run(args):
             "harness_exported_markers": all(p["markers"][name] for name in spec["markers"]),
             "session_contract": p["session_matches"][spec["session_var"]] if spec["session_var"] else not p["session_present"],
         }
+        if args.discover:
+            report["checks"]["configured_environment_not_detected"] = report["configured_control"]["agent"] is None
+            if "non_agent_control" in report:
+                report["checks"]["non_agent_command_not_detected"] = report["non_agent_control"]["agent"] is None
         report["status"] = classify_result(report, spec, args.expect_undetected)
         if spec.get("known_gap"):
             report["known_gap"] = spec["known_gap"]
@@ -295,7 +346,7 @@ def run(args):
             docker("rm", "--force", name, check=False)
         docker("network", "rm", network, check=False)
     (output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
-    for key in ("control", "probe"):
+    for key in ("control", "probe", "configured_control", "non_agent_control", "discovery"):
         if key in report:
             (output / (key + ".json")).write_text(json.dumps(report[key], indent=2) + "\n")
     print(json.dumps(report, indent=2))
@@ -312,4 +363,5 @@ if __name__ == "__main__":
     parser.add_argument("--token-file")
     parser.add_argument("--expect-undetected", action="store_true", help="Assert a documented missing-detection result; execution must still succeed")
     parser.add_argument("--skip-build", action="store_true", help="Use an already-built image for unchanged source")
+    parser.add_argument("--discover", action="store_true", help="Compare configured and tool environments without exporting values (mock only)")
     raise SystemExit(run(parser.parse_args()))

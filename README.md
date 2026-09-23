@@ -134,6 +134,10 @@ pull requests, on pushes to `main`, and before publishing a release. A scripted
 local provider requests a real shell-tool invocation; no LLM credentials or
 vendor accounts are needed. Sanitized reports record identity, session handling
 and execution evidence. The same tests run locally with Docker or OrbStack.
+The [discovery mode](tests/harnesses/discovery.md) compares real tool environments
+with controls to find candidate signals without exporting their values. It found
+that Cline's new launcher variables also reach non-agent commands, so they are
+deliberately excluded from default detection.
 
 ## License
 
