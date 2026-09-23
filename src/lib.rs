@@ -274,6 +274,7 @@ const SESSION_ID_VARS: &[(AgentId, &[&str])] = &[
     // Amp sets both to the same thread id; AGENT_THREAD_ID is the fallback.
     (AgentId::Amp, &["AMP_CURRENT_THREAD_ID", "AGENT_THREAD_ID"]),
     (AgentId::QwenCode, &["QWEN_CODE_SESSION_ID"]),
+    (AgentId::Pi, &["PI_SESSION_ID"]),
     // Cursor exposes only a trace id; its per-session vs per-command scope is
     // undocumented, so callers correlating on it should expect possible churn.
     (AgentId::Cursor, &["CURSOR_TRACE_ID"]),
@@ -433,6 +434,19 @@ where
         }
     }
 
+    // Pi SDK shell tools publish session context without the CLI's process
+    // markers. Preserve specific-marker precedence over this fallback.
+    if let Some(value) = env("PI_SESSION_ID").filter(|v| !v.trim().is_empty()) {
+        return Some(make(
+            AgentId::Pi,
+            "Pi",
+            Signal::EnvVar {
+                name: "PI_SESSION_ID",
+                value,
+            },
+        ));
+    }
+
     for &(path, id, name) in FILE_SIGNALS {
         if file_exists(path) {
             return Some(make(id, name, Signal::File { path }));
@@ -452,7 +466,9 @@ where
         .iter()
         .find(|(agent, _)| *agent == id)
         .map(|(_, vars)| *vars)?;
-    vars.iter().find_map(|var| nonempty(env(var)))
+    vars.iter().find_map(|var| {
+        nonempty(env(var)).filter(|value| id != AgentId::Pi || !value.trim().is_empty())
+    })
 }
 
 fn nonempty(v: Option<String>) -> Option<String> {
@@ -834,7 +850,8 @@ mod tests {
     /// environment fails here even if the per-var tests still pass.
     #[test]
     fn full_agent_environments_resolve_to_expected_identity() {
-        let cases: &[(&str, &[(&str, &str)], AgentId)] = &[
+        type DetectionCase<'a> = (&'a str, &'a [(&'a str, &'a str)], AgentId);
+        let cases: &[DetectionCase<'_>] = &[
             (
                 // Amp ships Claude Code compat plus the generic var.
                 "amp",

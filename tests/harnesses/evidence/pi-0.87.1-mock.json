@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "mode": "mock",
+  "harness": "pi",
+  "harness_version": "0.87.1",
+  "timestamp": "2026-09-23T12:45:34.790485+00:00",
+  "run_id": "7edf379d6b494db5b0d139aca2884aac",
+  "scope": "Linux noninteractive CLI bash tool; no PTY, SDK, MCP, resume, or human ! coverage",
+  "image_id": "sha256:d72ae18cbbf81a037581e5d950064484588cf8de135b8a93b5b258ffb6e16249",
+  "build_sha256": "9e11a221d60c1dd413eb8efe6cd310d4c09c8105432348a166e780d607409a4b",
+  "gateway_image": "python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea",
+  "gateway_source_sha256": "f7a1c7d4c73fdabf0868c500f873f82f514cd7dc241ca7acc6e4e0bbc64c4f32",
+  "platform": "linux/arm64",
+  "library_source_sha256": "6d3116e4005f5600184ca358dbdebb21c534aa4d94cc9c04afab6faa10c94438",
+  "control": {
+    "schema": 1,
+    "nonce": "ed9b6dd2c1fa4be58c3f213086089da4",
+    "library_version": "0.5.0",
+    "agent": null,
+    "signal": null,
+    "session_present": false,
+    "pi_session_present": false,
+    "session_matches_pi": false,
+    "ai_agent_is_pi": false,
+    "pi_coding_agent_is_true": false
+  },
+  "container_exit_code": 0,
+  "probe": {
+    "schema": 1,
+    "nonce": "ed9b6dd2c1fa4be58c3f213086089da4",
+    "library_version": "0.5.0",
+    "agent": "pi",
+    "signal": "AI_AGENT",
+    "session_present": false,
+    "pi_session_present": true,
+    "session_matches_pi": false,
+    "ai_agent_is_pi": true,
+    "pi_coding_agent_is_true": true
+  },
+  "execution": {
+    "exact_probe_command": true,
+    "tool_completed": true,
+    "tool_output_matches_artifact": true,
+    "agent_settled": true
+  },
+  "checks": {
+    "plain_shell_not_detected": true,
+    "real_shell_tool_executed": true,
+    "pi_identified": true,
+    "pi_exported_session": true,
+    "library_extracts_pi_session": false
+  },
+  "status": "fail"
+}

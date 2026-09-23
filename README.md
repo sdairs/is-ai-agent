@@ -53,6 +53,7 @@ The value is opaque and only comparable *within the same agent* — pair it with
 | Warp | `OZ_RUN_ID` | Run id; scope undocumented, so correlation may fragment. |
 | Cline | `CLINE_TASK_ID` | |
 | Roo Code | `ROO_CODE_TASK_ID` | |
+| Pi | `PI_SESSION_ID` | Injected by shell tools; human `!` / `!!` commands do not receive this session metadata. |
 
 Gemini CLI, Crush, and Grok CLI expose a session id only to *hooks*, not to ordinary subprocesses, so no id is available there.
 
@@ -98,7 +99,7 @@ let agent = detect_with(
    | `IFLOW_CLI` | iFlow CLI |
    | `GROK_AGENT` | Grok CLI |
    | `OZ_RUN_ID` | Warp |
-   | `PI_CODING_AGENT` | Pi |
+   | `PI_CODING_AGENT`; nonblank `PI_SESSION_ID` as a fallback | Pi |
    | `KIRO_AGENT_PATH` | Kiro |
    | `AGENT_CONTEXT_OUT` *and* `AGENT_DISPLAY_OUT` (the Kiro CLI exports this FIFO pair only while its agent drives the command; either alone is too generic) | Kiro |
    | `FIREBENDER_TERMINAL` | Firebender |
@@ -122,6 +123,15 @@ let agent = detect_with(
 4. A bare truthy `AGENT`/`AI_AGENT` (e.g. `AGENT=1`) as a last resort, resolving to `AgentId::Unknown`. Tool-specific vars outrank it, so agents that set both (e.g. OpenCode sets `AGENT=1` and `OPENCODE=1`) are still identified.
 
 The detected `Agent` carries the `Signal` that matched, so callers can see exactly *how* detection fired.
+
+## Real harness tests
+
+A [container test lab](tests/harnesses/README.md) runs the unmodified Pi, Qwen
+Code and OpenCode CLIs against a Rust probe. GitHub Actions runs these tests on
+pull requests, on pushes to `main`, and before publishing a release. A scripted
+local provider requests a real shell-tool invocation; no LLM credentials or
+vendor accounts are needed. Sanitized reports record identity, session handling
+and execution evidence. The same tests run locally with Docker or OrbStack.
 
 ## License
 

@@ -1,0 +1,26 @@
+{
+  "pi": {
+    "package": "@earendil-works/pi-coding-agent",
+    "version": "0.87.1",
+    "executable": "pi",
+    "tool": "bash",
+    "markers": ["PI_CODING_AGENT", "PI_SESSION_ID"],
+    "session_var": "PI_SESSION_ID"
+  },
+  "qwen-code": {
+    "package": "@qwen-code/qwen-code",
+    "version": "0.24.4",
+    "executable": "qwen",
+    "tool": "run_shell_command",
+    "markers": ["QWEN_CODE", "QWEN_CODE_SESSION_ID"],
+    "session_var": "QWEN_CODE_SESSION_ID"
+  },
+  "opencode": {
+    "package": "opencode-ai",
+    "version": "1.18.32",
+    "executable": "opencode",
+    "tool": "bash",
+    "markers": ["OPENCODE"],
+    "session_var": null
+  }
+}
