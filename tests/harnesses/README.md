@@ -92,7 +92,6 @@ cryptographic attestation against an agent deliberately forging artifacts.
 
 The Pi test initially exposed missing session extraction in `is-ai-agent` 0.5.0;
 this change adds its nonblank session fallback/extraction and focused unit tests.
-The [historical report](evidence/pi-0.87.1-mock.json) records the original failure.
 New runs test the fixed implementation.
 
 ## Known detection gaps
@@ -105,8 +104,6 @@ to make these tests pass, and no provider configuration is promoted to an identi
 rule. This observation does not certify other launch modes or IDE extensions.
 Goose was also checked with `--no-session`; the default saved-session run has the
 same identity gap. The committed adapter uses a normal saved session.
-Sanitized local snapshots: [Goose](evidence/goose-1.51.0-mock.json) and
-[Cline](evidence/cline-3.0.64-mock.json).
 
 Our [discovery investigation](discovery.md) compares configured, agent-tool and
 non-agent environments. Goose adds a generic `AGENT_SESSION_ID`; Cline adds

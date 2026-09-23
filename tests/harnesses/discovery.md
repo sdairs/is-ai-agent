@@ -106,14 +106,10 @@ controls and changes from the launch baseline remain in the test reports. Generi
 adoption alongside an older marker is visible. Signal changes with preserved
 detection are review items, not automatic upstream bug reports.
 
-Historical name-only Linux ARM64 snapshots: [Goose](evidence/goose-1.51.0-discovery.json)
-and [Cline](evidence/cline-3.0.64-discovery.json). Each records the version, image
-and source fingerprints, controls, observations, and successful tool roundtrip.
-
 The current suite does not cover all human-command, PTY, IDE, nested, or resumed
 session paths. The evidence is intentionally scoped to the recorded versions,
-platforms and commands. See the historical name-only discovery reports in
-[evidence](evidence/) and the per-run GitHub Actions artifacts.
+platforms and commands. The per-run GitHub Actions artifacts record versions,
+image and source fingerprints, controls, observations, and successful tool roundtrips.
 
 ## Expanded probes (2026-09-23)
 
