@@ -1,0 +1,3154 @@
+{
+  "harnesses": {
+    "claude-code": {
+      "contract_status": "pass",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": "claude-code",
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": false,
+          "KILO": false,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": null,
+          "AI_AGENT": "claude-code"
+        },
+        "markers": {
+          "CLAUDECODE": true,
+          "CLAUDE_CODE_CHILD_SESSION": true,
+          "CLAUDE_CODE_SESSION_ID": true,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": false,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": false,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": true,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": true,
+        "signal": "AI_AGENT"
+      },
+      "environment": {
+        "AI_AGENT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "ANTHROPIC_API_KEY": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "ANTHROPIC_BASE_URL": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "CLAUDECODE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CLAUDE_CODE_CHILD_SESSION": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "CLAUDE_CODE_ENTRYPOINT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CLAUDE_CODE_EXECPATH": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CLAUDE_CODE_SESSION_ATTENDED": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CLAUDE_CODE_SESSION_ID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CLAUDE_CODE_SIMPLE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CLAUDE_EFFORT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CLAUDE_PID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "COREPACK_ENABLE_AUTO_PIN": {
+          "change": "added",
+          "nonblank": true
+        },
+        "DISABLE_AUTOUPDATER": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "GIT_EDITOR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NoDefaultCurrentDirectoryInExePath": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHELL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:16:10.225716+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "Bash",
+      "version": "2.1.280"
+    },
+    "cline": {
+      "contract_status": "known-gap",
+      "controls": {
+        "configured": true,
+        "non_agent": true,
+        "plain": true
+      },
+      "detection": {
+        "agent": null,
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": false,
+          "KILO": false,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": null,
+          "AI_AGENT": null
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": false,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": false,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": false,
+        "signal": null
+      },
+      "environment": {
+        "CLINE_CONNECTOR_CLI_LAUNCH": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CLINE_WRAPPER_PATH": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_EXTRA_CA_CERTS": {
+          "change": "added",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:17:06.942596+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": {
+        "CLINE_CONNECTOR_CLI_LAUNCH": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CLINE_WRAPPER_PATH": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_EXTRA_CA_CERTS": {
+          "change": "added",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "changed",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        }
+      },
+      "platform": "linux/amd64",
+      "tool": "run_commands",
+      "version": "3.0.64"
+    },
+    "codex": {
+      "contract_status": "pass",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": "codex",
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": false,
+          "KILO": false,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": null,
+          "AI_AGENT": null
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": true,
+          "CODEX_THREAD_ID": true,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": false,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": false,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": true,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": true,
+        "signal": "CODEX_THREAD_ID"
+      },
+      "environment": {
+        "CODEX_CI": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CODEX_MANAGED_BY_NPM": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CODEX_MANAGED_PACKAGE_ROOT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CODEX_SESSION_ID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CODEX_THREAD_ID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CODEX_VERSION": {
+          "change": "added",
+          "nonblank": true
+        },
+        "COLORTERM": {
+          "change": "added",
+          "nonblank": false
+        },
+        "GH_PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "LANG": {
+          "change": "added",
+          "nonblank": true
+        },
+        "LC_ALL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "LC_CTYPE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NO_COLOR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "changed",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERM": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:16:22.079633+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "exec_command",
+      "version": "0.156.1"
+    },
+    "crush": {
+      "contract_status": "pass",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": "crush",
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": false,
+          "KILO": false,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": "crush",
+          "AI_AGENT": "crush"
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": true,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": false,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": false,
+        "signal": "AGENT"
+      },
+      "environment": {
+        "AGENT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "AI_AGENT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CRUSH": {
+          "change": "added",
+          "nonblank": true
+        },
+        "CRUSH_DISABLE_METRICS": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "CRUSH_DISABLE_PROVIDER_AUTO_UPDATE": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "DISABLE_METRICS": {
+          "change": "added",
+          "nonblank": false
+        },
+        "DISABLE_PROVIDER_AUTO_UPDATE": {
+          "change": "added",
+          "nonblank": false
+        },
+        "DO_NOT_TRACK": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "EDITOR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_EDITOR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "JJ_EDITOR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "JJ_PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "TERM": {
+          "change": "added",
+          "nonblank": true
+        },
+        "VISUAL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:16:02.737924+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "bash",
+      "version": "0.96.1"
+    },
+    "deepseek-harness": {
+      "contract_status": "pass",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": "deepseek-harness",
+        "exact_markers": {
+          "DSH_SHELL": true,
+          "HERMES_AGENT": false,
+          "KILO": false,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": null,
+          "AI_AGENT": null
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": false,
+          "DSH_SESSION_ID": true,
+          "DSH_SHELL": true,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": false,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": true,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": true,
+        "signal": "DSH_SHELL"
+      },
+      "environment": {
+        "DSH_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "DSH_PERMISSION_MODE": {
+          "change": "removed",
+          "nonblank": false
+        },
+        "DSH_SESSION_ID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "DSH_SHELL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "DSH_TELEMETRY_MODE": {
+          "change": "removed",
+          "nonblank": false
+        },
+        "DSH_TOOLS_MODE": {
+          "change": "removed",
+          "nonblank": false
+        },
+        "GIT_PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NO_COLOR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENAI_API_KEY": {
+          "change": "removed",
+          "nonblank": false
+        },
+        "PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERM": {
+          "change": "added",
+          "nonblank": true
+        },
+        "VIPSHOME": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:16:58.985494+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "bash",
+      "version": "0.1.5-rc.3"
+    },
+    "gemini-cli": {
+      "contract_status": "pass",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": "gemini-cli",
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": false,
+          "KILO": false,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": null,
+          "AI_AGENT": null
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": false,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": true,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": false,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": false,
+        "signal": "GEMINI_CLI"
+      },
+      "environment": {
+        "DBUS_SESSION_BUS_ADDRESS": {
+          "change": "added",
+          "nonblank": false
+        },
+        "DISPLAY": {
+          "change": "added",
+          "nonblank": false
+        },
+        "GCM_INTERACTIVE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GEMINI_API_KEY": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "GEMINI_CLI": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GEMINI_CLI_NO_RELAUNCH": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GEMINI_CLI_TRUST_WORKSPACE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GH_PROMPT_DISABLED": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_ASKPASS": {
+          "change": "added",
+          "nonblank": false
+        },
+        "GIT_CONFIG_COUNT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_GLOBAL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_KEY_0": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_KEY_1": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_KEY_2": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_KEY_3": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_KEY_4": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_KEY_5": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_KEY_6": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_KEY_7": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_NOSYSTEM": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_SYSTEM": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_VALUE_0": {
+          "change": "added",
+          "nonblank": false
+        },
+        "GIT_CONFIG_VALUE_1": {
+          "change": "added",
+          "nonblank": false
+        },
+        "GIT_CONFIG_VALUE_2": {
+          "change": "added",
+          "nonblank": false
+        },
+        "GIT_CONFIG_VALUE_3": {
+          "change": "added",
+          "nonblank": false
+        },
+        "GIT_CONFIG_VALUE_4": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_VALUE_5": {
+          "change": "added",
+          "nonblank": false
+        },
+        "GIT_CONFIG_VALUE_6": {
+          "change": "added",
+          "nonblank": false
+        },
+        "GIT_CONFIG_VALUE_7": {
+          "change": "added",
+          "nonblank": false
+        },
+        "GIT_PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_TERMINAL_PROMPT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GOOGLE_GEMINI_BASE_URL": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SSH_ASKPASS": {
+          "change": "added",
+          "nonblank": false
+        },
+        "TERM": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:16:08.053899+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "run_shell_command",
+      "version": "0.60.0"
+    },
+    "github-copilot": {
+      "contract_status": "pass",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": "github-copilot",
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": false,
+          "KILO": false,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": null,
+          "AI_AGENT": null
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": true,
+          "COPILOT_CLI": true,
+          "CRUSH": false,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": false,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": true,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": true,
+        "signal": "COPILOT_AGENT_SESSION_ID"
+      },
+      "environment": {
+        "COPILOT_AGENT_SESSION_ID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "COPILOT_CLI": {
+          "change": "added",
+          "nonblank": true
+        },
+        "COPILOT_CLI_BINARY_VERSION": {
+          "change": "added",
+          "nonblank": true
+        },
+        "COPILOT_CLI_RESOLVED_DIST_DIR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "COPILOT_OFFLINE": {
+          "change": "removed",
+          "nonblank": false
+        },
+        "COPILOT_PROVIDER_API_KEY": {
+          "change": "removed",
+          "nonblank": false
+        },
+        "COPILOT_PROVIDER_BASE_URL": {
+          "change": "removed",
+          "nonblank": false
+        },
+        "COPILOT_PROVIDER_TYPE": {
+          "change": "removed",
+          "nonblank": false
+        },
+        "GCM_INTERACTIVE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_ASKPASS": {
+          "change": "added",
+          "nonblank": false
+        },
+        "GIT_CONFIG_COUNT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_KEY_0": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_KEY_1": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_KEY_2": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_VALUE_0": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_VALUE_1": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_CONFIG_VALUE_2": {
+          "change": "added",
+          "nonblank": false
+        },
+        "GIT_OPTIONAL_LOCKS": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_TERMINAL_PROMPT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "changed",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SSH_ASKPASS": {
+          "change": "added",
+          "nonblank": false
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:16:15.210460+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "bash",
+      "version": "1.0.88"
+    },
+    "goose": {
+      "contract_status": "known-gap",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": null,
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": false,
+          "KILO": false,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": null,
+          "AI_AGENT": null
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": false,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": false,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": false,
+        "signal": null
+      },
+      "environment": {
+        "AGENT_SESSION_ID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GOOSE_DISABLE_KEYRING": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "GOOSE_MAX_TURNS": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "GOOSE_MODE": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "GOOSE_MODEL": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "GOOSE_PROVIDER": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENAI_API_KEY": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENAI_HOST": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:15:59.483091+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "shell",
+      "version": "1.52.0"
+    },
+    "hermes-agent": {
+      "contract_status": "pass",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": "hermes-agent",
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": true,
+          "KILO": false,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": null,
+          "AI_AGENT": "hermes-agent"
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": false,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": true,
+          "HERMES_SESSION_ID": true,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": false,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": true,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": true,
+        "signal": "AI_AGENT"
+      },
+      "environment": {
+        "AI_AGENT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "BROWSER_INACTIVITY_TIMEOUT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HERMES_AGENT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HERMES_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HERMES_INTERACTIVE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HERMES_KANBAN_BOARD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HERMES_QUIET": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HERMES_REAL_HOME": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HERMES_SCRATCH_DIR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HERMES_SESSION_ID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HERMES_SINGLE_QUERY_SESSION": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HERMES_TURN_LEASE_TIMEOUT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HERMES_YOLO_MODE": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "LC_CTYPE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OLDPWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENAI_API_KEY": {
+          "change": "removed",
+          "nonblank": false
+        },
+        "OPENAI_BASE_URL": {
+          "change": "removed",
+          "nonblank": false
+        },
+        "PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "changed",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SSL_CERT_FILE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TEMP": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_CONTAINER_CPU": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_CONTAINER_DISK": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_CONTAINER_MEMORY": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_CONTAINER_PERSISTENT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_CWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_DAYTONA_IMAGE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_DEGRADED_MODE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_DOCKER_ENV": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_DOCKER_EXTRA_ARGS": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_DOCKER_FORWARD_ENV": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_DOCKER_IMAGE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_DOCKER_MOUNT_CWD_TO_WORKSPACE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_DOCKER_NETWORK": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_DOCKER_RUN_AS_HOST_USER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_DOCKER_SHARED_CONTAINER_KEY": {
+          "change": "added",
+          "nonblank": false
+        },
+        "TERMINAL_DOCKER_SHM_SIZE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_DOCKER_SNAP_COMPAT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_DOCKER_VOLUMES": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_ENV": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_HOME_MODE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_LIFETIME_SECONDS": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_MODAL_IMAGE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_MODAL_MODE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_PERSISTENT_SHELL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_SINGULARITY_IMAGE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_TEMP_DIR": {
+          "change": "added",
+          "nonblank": false
+        },
+        "TERMINAL_TIMEOUT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERMINAL_VERCEL_RUNTIME": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TMP": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TMPDIR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        },
+        "_HERMES_GATEWAY": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:17:31.727623+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "terminal",
+      "version": "0.21.4"
+    },
+    "junie": {
+      "contract_status": "known-gap",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": null,
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": false,
+          "KILO": false,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": null,
+          "AI_AGENT": null
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": false,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": true,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": true,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": false,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": false,
+        "signal": null
+      },
+      "environment": {
+        "CI": {
+          "change": "added",
+          "nonblank": true
+        },
+        "DEBIAN_FRONTEND": {
+          "change": "added",
+          "nonblank": true
+        },
+        "EJ_RUNNER_PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_ASKPASS": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_OPTIONAL_LOCKS": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_TERMINAL_PROMPT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOMEBREW_NO_AUTO_UPDATE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "JUNIE_DATA": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "JUNIE_SHIM_PATH": {
+          "change": "added",
+          "nonblank": true
+        },
+        "JUNIE_SKIP_UPDATE_CHECK": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "JUNIE_TMPDIR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "LD_LIBRARY_PATH": {
+          "change": "added",
+          "nonblank": true
+        },
+        "MATTERHORN_SESSION_ID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "MATTERHORN_TASK": {
+          "change": "added",
+          "nonblank": false
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NO_COLOR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "NPM_CONFIG_YES": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PIP_DISABLE_PIP_VERSION_CHECK": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PIP_NO_INPUT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SSH_ASKPASS": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERM": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        },
+        "_JPACKAGE_LAUNCHER": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:16:36.591514+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "bash",
+      "version": "3110.7.0"
+    },
+    "kilo-code": {
+      "contract_status": "pass",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": "kilo-code",
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": false,
+          "KILO": true,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": "unknown",
+          "AI_AGENT": null
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": false,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": true,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": true,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": false,
+        "signal": "KILO"
+      },
+      "environment": {
+        "AGENT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "KILO": {
+          "change": "added",
+          "nonblank": true
+        },
+        "KILOCODE_FEATURE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "KILOCODE_VERSION": {
+          "change": "added",
+          "nonblank": true
+        },
+        "KILO_DISABLE_AUTOUPDATE": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "KILO_DISABLE_MODELS_FETCH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "KILO_PID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "KILO_PROCESS_ROLE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "KILO_RUN_ID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "KILO_TREE_SITTER_WASM_DIR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENCODE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENCODE_DISABLE_AUTOUPDATE": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENCODE_DISABLE_MODELS_FETCH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:16:17.262529+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "bash",
+      "version": "7.7.9"
+    },
+    "openclaw": {
+      "contract_status": "pass",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": "openclaw",
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": false,
+          "KILO": false,
+          "OPENCLAW_SHELL": true,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": null,
+          "AI_AGENT": null
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": false,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": true,
+          "OPENCODE": false,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": false,
+        "signal": "OPENCLAW_SHELL"
+      },
+      "environment": {
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_NO_WARNINGS": {
+          "change": "added",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENCLAW_CLI": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENCLAW_NODE_OPTIONS_READY": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENCLAW_PATH_BOOTSTRAPPED": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENCLAW_SHELL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENCLAW_STATE_DIR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENCLAW_WORKSPACE_DIR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "changed",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:16:59.617003+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "exec",
+      "version": "2026.9.5"
+    },
+    "opencode": {
+      "contract_status": "pass",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": "opencode",
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": false,
+          "KILO": false,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": "unknown",
+          "AI_AGENT": null
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": false,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": true,
+          "OPENCODE_PID": true,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": false,
+        "signal": "OPENCODE"
+      },
+      "environment": {
+        "AGENT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENCODE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENCODE_DISABLE_AUTOCOMPACT": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENCODE_DISABLE_AUTOUPDATE": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENCODE_DISABLE_FFF": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENCODE_DISABLE_MODELS_FETCH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENCODE_DISABLE_PROJECT_CONFIG": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENCODE_PID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        },
+        "npm_config_user_agent": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:16:08.406862+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "bash",
+      "version": "1.18.32"
+    },
+    "pi": {
+      "contract_status": "pass",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": "pi",
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": false,
+          "KILO": false,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": null,
+          "AI_AGENT": "pi"
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": false,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": false,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": true,
+          "PI_SESSION_ID": true,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": true,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": true,
+        "signal": "AI_AGENT"
+      },
+      "environment": {
+        "AI_AGENT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "changed",
+          "nonblank": true
+        },
+        "PI_CODING_AGENT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PI_CODING_AGENT_DIR": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PI_MODEL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PI_OFFLINE": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PI_PROVIDER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PI_REASONING_LEVEL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PI_SESSION_ID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PI_SKIP_VERSION_CHECK": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PI_TELEMETRY": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:16:16.829403+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "bash",
+      "version": "0.87.1"
+    },
+    "qwen-code": {
+      "contract_status": "pass",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": "qwen-code",
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": false,
+          "KILO": false,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": false
+        },
+        "generic_markers": {
+          "AGENT": null,
+          "AI_AGENT": null
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": false,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": false,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": true,
+          "QWEN_CODE_SESSION_ID": true,
+          "VTCODE": false
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": true
+        },
+        "session_present": true,
+        "signal": "QWEN_CODE"
+      },
+      "environment": {
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENAI_API_KEY": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENAI_BASE_URL": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENAI_MODEL": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "QWEN_CODE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "QWEN_CODE_AGENT_ID": {
+          "change": "added",
+          "nonblank": false
+        },
+        "QWEN_CODE_CLI": {
+          "change": "added",
+          "nonblank": true
+        },
+        "QWEN_CODE_LAUNCHER_PID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "QWEN_CODE_MANAGED_NPM_PIN": {
+          "change": "added",
+          "nonblank": true
+        },
+        "QWEN_CODE_MANAGED_NPM_ROOT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "QWEN_CODE_MODEL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "QWEN_CODE_MODEL_IDENTITY": {
+          "change": "added",
+          "nonblank": true
+        },
+        "QWEN_CODE_NO_RELAUNCH": {
+          "change": "added",
+          "nonblank": true
+        },
+        "QWEN_CODE_PRIVATE_RELAUNCH_ENV_PROVENANCE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "QWEN_CODE_PROJECT_DIR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "QWEN_CODE_PROMPT_ID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "QWEN_CODE_SESSION_ID": {
+          "change": "added",
+          "nonblank": true
+        },
+        "QWEN_CODE_STARTUP_VERSION": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "TERM": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:16:02.397253+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "run_shell_command",
+      "version": "0.24.4"
+    },
+    "vtcode": {
+      "contract_status": "pass",
+      "controls": {
+        "configured": true,
+        "non_agent": null,
+        "plain": true
+      },
+      "detection": {
+        "agent": "vtcode",
+        "exact_markers": {
+          "DSH_SHELL": false,
+          "HERMES_AGENT": false,
+          "KILO": false,
+          "OPENCLAW_SHELL": false,
+          "VTCODE": true
+        },
+        "generic_markers": {
+          "AGENT": null,
+          "AI_AGENT": null
+        },
+        "markers": {
+          "CLAUDECODE": false,
+          "CLAUDE_CODE_CHILD_SESSION": false,
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_ACTIVE": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_SANDBOX": false,
+          "CODEX_SESSION_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "COPILOT_CLI": false,
+          "CRUSH": false,
+          "DSH_SESSION_ID": false,
+          "DSH_SHELL": false,
+          "GEMINI_CLI": false,
+          "GOOSE_TERMINAL": false,
+          "HERMES_AGENT": false,
+          "HERMES_SESSION_ID": false,
+          "JUNIE_SHIM_PATH": false,
+          "KILO": false,
+          "MATTERHORN_SESSION_ID": false,
+          "OPENCLAW_SHELL": false,
+          "OPENCODE": false,
+          "OPENCODE_PID": false,
+          "PI_CODING_AGENT": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE": false,
+          "QWEN_CODE_SESSION_ID": false,
+          "VTCODE": true
+        },
+        "session_matches": {
+          "CLAUDE_CODE_SESSION_ID": false,
+          "CLINE_TASK_ID": false,
+          "CODEX_THREAD_ID": false,
+          "COPILOT_AGENT_SESSION_ID": false,
+          "DSH_SESSION_ID": false,
+          "HERMES_SESSION_ID": false,
+          "PI_SESSION_ID": false,
+          "QWEN_CODE_SESSION_ID": false
+        },
+        "session_present": false,
+        "signal": "VTCODE"
+      },
+      "environment": {
+        "CARGO_TERM_COLOR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "GIT_TERMINAL_PROMPT": {
+          "change": "added",
+          "nonblank": true
+        },
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NO_COLOR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENAI_API_KEY": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PAGER": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PYTHONUNBUFFERED": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHELL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "SHLVL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "VTCODE": {
+          "change": "added",
+          "nonblank": true
+        },
+        "VTCODE_TRUST_WORKSPACE": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "WORKSPACE_DIR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "_": {
+          "change": "added",
+          "nonblank": true
+        }
+      },
+      "evidence": {
+        "adapter_source_sha256": "46e648963d6186d268842ab6e72378b16586d1b9933b7b2ba75b044747345438",
+        "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+        "observed_at": "2026-09-23T19:15:56.059739+00:00",
+        "probe_schema": 4,
+        "probe_source_sha256": "6a441e529da0bb2918766c829b5ff5bf9ab2525d4b81d9ec0bf9807c23fdc4c1",
+        "run_url": "https://github.com/sdairs/is-ai-agent/actions/runs/35908062679"
+      },
+      "non_agent_environment": null,
+      "platform": "linux/amd64",
+      "tool": "exec_command",
+      "version": "0.169.1"
+    }
+  },
+  "schema": 1
+}

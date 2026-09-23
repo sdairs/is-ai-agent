@@ -205,7 +205,7 @@ def render(document):
         lines += ["", f"## {name}", "", f"Version `{e['version']}` · `{e['platform']}` · tool `{e['tool']}` · contract `{e['contract_status']}`.", "",
                   f"[Recorded execution]({e['evidence']['run_url']}) at {e['evidence']['observed_at']}.", "",
                   f"Generic classifications: `AGENT` → `{d['generic_markers']['AGENT'] or 'absent/blank'}`; `AI_AGENT` → `{d['generic_markers']['AI_AGENT'] or 'absent/blank'}`.", "",
-                  "Controls (no detection expected): " + "; ".join(f"{key}: {'untested' if value is None else 'clear' if value else 'detected'}" for key, value in e['controls'].items()) + ".", "",
+                  "Controls (no detection expected): " + "; ".join(f"{key}: {'untested' if e['controls'][key] is None else 'clear' if e['controls'][key] else 'detected'}" for key in ("plain", "configured", "non_agent")) + ".", "",
                   "| Variable | Change from launch baseline | Nonblank in tool | Non-agent child | Probe observation |",
                   "| --- | --- | --- | --- | --- |"]
         for variable, info in sorted(e["environment"].items()):

@@ -36,6 +36,10 @@ def document():
 
 
 class InventoryTests(unittest.TestCase):
+    def test_reference_sheet_is_stable_after_sorted_json_roundtrip(self):
+        doc = document()
+        self.assertEqual(inventory.render(doc), inventory.render(json.loads(json.dumps(doc, sort_keys=True))))
+
     def test_unrelated_generic_addition_is_visible_while_detection_stays_working(self):
         before = document()["harnesses"]["pi"]
         after = copy.deepcopy(before)
@@ -114,6 +118,24 @@ class InventoryTests(unittest.TestCase):
             current, errors = inventory.collect(old, artifacts, ["pi"], RUN_URL)
             self.assertEqual(current, old)
             self.assertTrue(errors)
+
+    def test_rerun_uses_latest_attempt_without_losing_earlier_successful_jobs(self):
+        old = document()
+        with tempfile.TemporaryDirectory() as directory:
+            artifacts = Path(directory)
+            for attempt in (1, 2):
+                folder = artifacts / f"watch-pi-123-{attempt}" / "uuid"
+                folder.mkdir(parents=True)
+                (folder / "comparison.json").write_text("{}")
+                (folder / "baseline.json").write_text(json.dumps(report()))
+                candidate = report(nonce="b" * 32)
+                if attempt == 2:
+                    candidate["harness_version"] = "0.88.0"
+                (folder / "candidate.json").write_text(json.dumps(candidate))
+                (folder / "resolved.json").write_text(json.dumps({"version": candidate["harness_version"]}))
+            current, errors = inventory.collect(old, artifacts, ["pi"], RUN_URL)
+            self.assertFalse(errors)
+            self.assertEqual(current["harnesses"]["pi"]["version"], "0.88.0")
 
 
 class FakeGitHub:
@@ -195,6 +217,21 @@ class PublisherTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.publish()
         self.assertFalse([c for c in self.api.calls if c[1] != "GET"])
+
+    def test_existing_proposal_is_updated_without_force_push_or_default_branch_write(self):
+        self.api.prs = [{"number": 7, "body": publisher.MARKER, "user": {"login": "github-actions[bot]"}}]
+        self.api.refs = [{"ref": "refs/heads/" + publisher.BRANCH, "object": {"sha": "a" * 40}}]
+        self.api.files = [{"filename": str(inventory.DATA)}]
+        self.new["harnesses"]["pi"]["version"] = "0.88.0"
+        self.publish()
+        writes = [c for c in self.api.calls if c[1] != "GET"]
+        commit = next(c[2] for c in writes if c[0] == "git/commits")
+        self.assertEqual(commit["parents"], ["a" * 40, SHA])
+        ref = next(c for c in writes if c[0].startswith("git/refs/"))
+        self.assertFalse(ref[2]["force"])
+        self.assertIn("codex%2Fharness-inventory", ref[0])
+        self.assertIn("pulls/7", [c[0] for c in writes])
+        self.assertNotIn("pulls", [c[0] for c in writes])
 
     def test_artifact_values_or_failed_snapshot_replacement_cannot_be_published(self):
         self.new["harnesses"]["pi"]["environment"]["TOKEN"] = {"change": "added", "nonblank": True, "value": "sentinel-secret"}
