@@ -39,6 +39,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     // Start at the Rust probe. The helper's own Node process is excluded.
     ancestry: ancestry(process.ppid) };
   const text = JSON.stringify(record) + "\n";
-  writeFileSync(destination, text, { flag: "wx", mode: 0o600 });
+  // Sanitized output must be readable by the host runner's different UID on
+  // Linux. Its host parent is private; the raw tmpfs baseline stays mode 0600.
+  writeFileSync(destination, text, { flag: "wx", mode: 0o644 });
   process.stdout.write(text);
 }
