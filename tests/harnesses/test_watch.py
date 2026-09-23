@@ -117,7 +117,7 @@ class WatchTests(unittest.TestCase):
     def test_changed_value_of_existing_marker_is_not_a_new_candidate(self):
         before, after = self.report("goose"), self.report("goose")
         for report, value in [(before, "goose_1-52-0_agent"), (after, "goose_1-53-0_agent")]:
-            report["discovery"]["agent"]["schema"] = 2
+            report["discovery"]["agent"]["schema"] = 3
             report["discovery"]["agent"]["environment"]["AI_AGENT"] = {
                 "change": "added", "nonblank": True, "value": value}
         result = watch.assess(before, after)
@@ -125,13 +125,18 @@ class WatchTests(unittest.TestCase):
         self.assertEqual(result["candidates"], [])
         self.assertEqual(result["changes"]["environment.AI_AGENT"]["after"]["value"], "goose_1-53-0_agent")
 
-    def test_unapproved_values_never_reach_comparison(self):
+    def test_unknown_values_and_changing_session_ids_are_compared_exactly(self):
         before, after = self.report(), self.report()
-        after["discovery"]["agent"]["schema"] = 2
+        for report, session in [(before, "generated-session-one"), (after, "generated-session-two")]:
+            report["discovery"]["agent"]["schema"] = 3
+            report["discovery"]["agent"]["environment"]["SESSION_ID"] = {
+                "change": "added", "nonblank": True, "value": session}
         after["discovery"]["agent"]["environment"]["NEW_AGENT"] = {
-            "change": "added", "nonblank": True, "value": "sentinel-secret"}
-        with self.assertRaises(ValueError):
-            watch.assess(before, after)
+            "change": "added", "nonblank": True, "value": "unfamiliar-value"}
+        result = watch.assess(before, after)
+        self.assertEqual(result["changes"]["environment.NEW_AGENT"]["after"]["value"], "unfamiliar-value")
+        self.assertEqual(result["changes"]["environment.SESSION_ID"]["after"]["value"], "generated-session-two")
+        self.assertEqual(result["candidates"], ["NEW_AGENT"])
 
     def test_watcher_records_resolution_and_both_fresh_runs(self):
         spec = {**run.HARNESS["goose"], "version": "1.53.0"}

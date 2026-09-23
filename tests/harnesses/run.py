@@ -2,6 +2,7 @@
 """Run unmodified agent CLIs against a local scripted provider in Docker."""
 import argparse
 import hashlib
+import html
 import json
 import re
 import subprocess
@@ -16,10 +17,9 @@ import releases
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 HARNESS = json.loads((HERE / "harnesses.json").read_text())
-VALUE_POLICY = json.loads((HERE / "value_policy.json").read_text())
 GATEWAY_IMAGE = "python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea"
 BUILD_FILES = ["Cargo.toml", "Cargo.lock", "src/lib.rs", "examples/detect.rs", "examples/probe.rs",
-               "tests/harnesses/install.mjs", "tests/harnesses/Dockerfile", "tests/harnesses/entrypoint.mjs", "tests/harnesses/discover.mjs", "tests/harnesses/value_policy.json", "tests/harnesses/harnesses.json"]
+               "tests/harnesses/install.mjs", "tests/harnesses/Dockerfile", "tests/harnesses/entrypoint.mjs", "tests/harnesses/discover.mjs", "tests/harnesses/harnesses.json"]
 MARKERS = {"PI_CODING_AGENT", "PI_SESSION_ID", "QWEN_CODE", "GEMINI_CLI",
            "QWEN_CODE_SESSION_ID", "OPENCODE", "OPENCODE_PID",
            "COPILOT_CLI", "COPILOT_AGENT", "COPILOT_AGENT_SESSION_ID", "CRUSH", "GOOSE_TERMINAL",
@@ -32,42 +32,32 @@ EXECUTABLES = {"agent-probe", "node", "bash", "sh", "dash", "zsh", "goose", "cli
 
 EXACT_MARKERS = {"DSH_SHELL", "KILO", "OPENCLAW_SHELL", "HERMES_AGENT", "VTCODE"}
 
-def safe_value(name, value):
-    if not isinstance(value, str):
-        return None
-    p = VALUE_POLICY
-    if re.search(p["sensitive_name"], name, re.I):
-        return p["redacted"]
-    if value in p["literals"] or value in p["by_name"].get(name, []):
-        return value
-    if name in p["identity_names"] and re.fullmatch(p["identity_pattern"], value, re.I):
-        return value
-    if name in p["version_names"] and re.fullmatch(p["version_pattern"], value):
-        return value
-    return p["redacted"]
+def markdown_value(value):
+    """Display complete JSON values without interpreting their Markdown/HTML."""
+    text = html.escape(json.dumps(value, ensure_ascii=True, sort_keys=True))
+    return "<code>" + text.replace("|", "&#124;").replace("`", "&#96;") + "</code>"
 
 
 def validate_discovery(value, nonce):
     if (not isinstance(value, dict) or set(value) != {"schema", "nonce", "environment", "ancestry"}
-            or value["schema"] not in (1, 2) or value["nonce"] != nonce):
+            or value["schema"] not in (1, 2, 3) or value["nonce"] != nonce):
         raise ValueError("Invalid discovery artifact")
     environment = value["environment"]
     if not isinstance(environment, dict) or len(environment) > 256:
         raise ValueError("Invalid discovery environment")
     for name, info in environment.items():
         if (not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,95}", name) or not isinstance(info, dict)
-                or set(info) != ({"change", "nonblank", "value"} if value["schema"] == 2 else {"change", "nonblank"}) or type(info["nonblank"]) is not bool
+                or set(info) != ({"change", "nonblank", "value"} if value["schema"] >= 2 else {"change", "nonblank"}) or type(info["nonblank"]) is not bool
                 or not isinstance(info["change"], str) or info["change"] not in {"added", "removed", "changed", "unchanged"}):
             raise ValueError("Invalid discovery fields")
-        if value["schema"] == 2:
+        if value["schema"] >= 2:
             exported = info["value"]
             if info["change"] == "removed":
                 if exported is not None or info["nonblank"]:
                     raise ValueError("Removed variable has a value")
-            elif (not isinstance(exported, str) or len(exported) > 128
-                  or safe_value(name, exported) != exported
-                  or (exported != VALUE_POLICY["redacted"] and bool(exported.strip()) != info["nonblank"])):
-                raise ValueError("Unapproved environment value")
+            elif (not isinstance(exported, str)
+                  or (value["schema"] == 3 and bool(exported.strip()) != info["nonblank"])):
+                raise ValueError("Invalid environment value")
     if (not isinstance(value["ancestry"], list) or not 1 <= len(value["ancestry"]) <= 16
             or any(not isinstance(name, str) or name not in EXECUTABLES for name in value["ancestry"])):
         raise ValueError("Invalid discovery ancestry")
@@ -75,7 +65,7 @@ def validate_discovery(value, nonce):
 
 
 def read_artifact(path, nonce, validator=validate_discovery):
-    if path.is_symlink() or not path.is_file() or path.stat().st_size > 32768:
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 2 * 1024 * 1024:
         raise ValueError("Artifact missing or invalid")
     return validator(json.loads(path.read_text()), nonce)
 
@@ -100,7 +90,7 @@ def override_version(harness, version):
 def docker(*args, check=True, timeout=180):
     result = subprocess.run(["docker", *map(str, args)], capture_output=True, text=True, timeout=timeout)
     if check and result.returncode:
-        # Never echo container output by default. Only sanitized artifacts persist.
+        # Never echo container output by default. Only validated artifacts persist.
         raise RuntimeError("Docker command failed: " + str(args[0]))
     return result
 
@@ -285,7 +275,7 @@ def run(args):
               "gateway_source_sha256": hashlib.sha256((HERE / "gateway.py").read_bytes()).hexdigest(),
               "probe_source_sha256": hashlib.sha256((ROOT / "examples/probe.rs").read_bytes()).hexdigest(),
               "adapter_source_sha256": hashlib.sha256(b"".join((HERE / name).read_bytes() for name in
-                  ("entrypoint.mjs", "discover.mjs", "value_policy.json", "gateway.py"))).hexdigest(),
+                  ("entrypoint.mjs", "discover.mjs", "gateway.py"))).hexdigest(),
               "platform": docker("image", "inspect", image, "--format", "{{.Os}}/{{.Architecture}}").stdout.strip(),
               "library_source_sha256": hashlib.sha256((ROOT / "src/lib.rs").read_bytes()).hexdigest()}
     try:
@@ -413,7 +403,7 @@ if __name__ == "__main__":
     parser.add_argument("--token-file")
     parser.add_argument("--expect-undetected", action="store_true", help="Assert a documented missing-detection result; execution must still succeed")
     parser.add_argument("--skip-build", action="store_true", help="Use an already-built image for unchanged source")
-    parser.add_argument("--discover", action="store_true", help="Compare configured and tool environments with sanitized values (mock only)")
+    parser.add_argument("--discover", action="store_true", help="Compare configured and tool environments with exact values (mock only)")
     parser.add_argument("--version", help="Select a reviewed version or trial an exact npm release without changing the manifest")
     args = parser.parse_args()
     if args.version:

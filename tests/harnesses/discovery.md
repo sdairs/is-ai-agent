@@ -31,9 +31,10 @@ Discovery does not change `detect()` or make a detection gap pass.
 
 The configured baseline exists only in the container's private `/tmp` filesystem.
 The helper compares values there and exports portable environment names,
-`added`/`changed`/`removed`/`unchanged`, nonblank booleans and reviewed safe values.
-Credentials, session IDs and unreviewed values are replaced with `<redacted>`
-inside the container. No value lengths, hashes or command arguments are exported.
+`added`/`changed`/`removed`/`unchanged`, nonblank booleans and exact values.
+Nothing is redacted or normalized: mock API keys, generated session IDs, paths
+and unfamiliar values are all preserved. Only isolated mock runs support discovery;
+no real provider credential, host environment or user configuration is supplied.
 An optional diagnostic process chain is represented using a fixed list of
 executable names plus `other`/`unavailable`. It is not used by the library.
 Invalid names are omitted; strict artifact schemas reject extra fields or values.
@@ -91,27 +92,27 @@ This does not establish the behavior of Cline's separate VS Code extension.
 Start with the same discovery mode. Review names that appear only in the tool
 environment; reject configuration-only and shared shell variables. Trace a
 promising candidate to the exact released source when available. If its value
-matters, review a narrow addition to the value policy or add a safe probe predicate.
+matters, inspect the captured value and add an explicit probe predicate if needed.
 Add a real negative control for that launch surface, then check another fresh
 run, other supported backends, and session/resume/nesting behavior as relevant.
 Only then add a narrow rule and regression tests. Discovery never automatically
 imports a candidate into the detector.
 
 The [generated inventory](inventory/README.md) provides a versioned reference
-sheet of harnesses, their variable names and sanitized values. Weekly reports
+sheet of harnesses, their variable names and exact values. Weekly reports
 compare it with new observations and propose inventory-only PRs. Detection results,
 controls and changes from the launch baseline remain in the test reports. Generic
 `AGENT` / `AI_AGENT` identities are observed even when another signal wins, so
 adoption alongside an older marker is visible. Signal changes with preserved
 detection are review items, not automatic upstream bug reports.
 
-Sanitized local Linux ARM64 snapshots: [Goose](evidence/goose-1.51.0-discovery.json)
+Historical name-only Linux ARM64 snapshots: [Goose](evidence/goose-1.51.0-discovery.json)
 and [Cline](evidence/cline-3.0.64-discovery.json). Each records the version, image
 and source fingerprints, controls, observations, and successful tool roundtrip.
 
 The current suite does not cover all human-command, PTY, IDE, nested, or resumed
 session paths. The evidence is intentionally scoped to the recorded versions,
-platforms and commands. See the committed sanitized discovery reports in
+platforms and commands. See the historical name-only discovery reports in
 [evidence](evidence/) and the per-run GitHub Actions artifacts.
 
 ## Expanded probes (2026-09-23)
@@ -126,8 +127,8 @@ platforms and commands. See the committed sanitized discovery reports in
 | Junie 26.9.7 (3110.7) | `JUNIE_SHIM_PATH`, `MATTERHORN_SESSION_ID` present | Retain as candidates, no default identity/session rule yet |
 
 The detection probe checks literal predicates inside the container and exports
-booleans. Discovery additionally records reviewed safe values; arbitrary values
-and session identifiers remain redacted. Positive results require
+booleans. Discovery additionally records exact environment values, including
+arbitrary strings and generated session identifiers. Positive results require
 clean/configured negative controls and the same fresh output in both the artifact
 and actual tool result. Rust fixtures cover wrong values and precedence; they are
 not presented as real tests of other human/IDE/ACP modes.

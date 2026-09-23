@@ -73,12 +73,12 @@ def execute(harness, spec):
 
 
 def summary(result):
-    # All rendered fields are controlled identifiers or validated versions.
+    # Identifiers/versions are validated; environment values are escaped for display.
     lines = [f"### {result['harness']}: {result['outcome']}", "",
              f"Pinned: `{result['pinned_version']}`. Candidate: `{result.get('candidate_version', 'unresolved')}`.", "",
              "| Observation | Before | After |", "| --- | --- | --- |"]
     for field, delta in result.get("changes", {}).items():
-        lines.append(f"| `{field}` | `{json.dumps(delta['before'], sort_keys=True)}` | `{json.dumps(delta['after'], sort_keys=True)}` |")
+        lines.append(f"| `{field}` | {run.markdown_value(delta['before'])} | {run.markdown_value(delta['after'])} |")
     if not result.get("changes"):
         lines.append("| Delta | No interpreted delta | See outcome and evidence |")
     if result.get("candidates"):
@@ -87,7 +87,7 @@ def summary(result):
         lines += ["", f"{name.capitalize()} run: `{report['status']}` at `{report['stage']}`."]
     if result.get("error_type"):
         lines += ["", f"Resolution/evidence error: `{result['error_type']}` (details omitted from artifacts)."]
-    lines += ["", "An execution failure is not evidence that a marker disappeared. Credentials, session IDs and unreviewed environment values are redacted.", ""]
+    lines += ["", "An execution failure is not evidence that a marker disappeared. Values are recorded exactly from mock runs; generated session and container IDs can differ on every run.", ""]
     return "\n".join(lines)
 
 

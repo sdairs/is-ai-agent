@@ -112,7 +112,7 @@ Our [discovery investigation](discovery.md) compares configured, agent-tool and
 non-agent environments. Goose adds a generic `AGENT_SESSION_ID`; Cline adds
 launcher variables that also appear in a non-agent `cline skill list` child.
 Neither observation justifies a new default identity rule. The reusable
-`--discover` mode records redacted environment differences and diagnostic process
+`--discover` mode records exact environment differences and diagnostic process
 ancestry so we can find and evaluate signals ourselves.
 
 Junie also executes the real probe and completes through its `submit` tool.
@@ -197,23 +197,24 @@ never passed into Docker builds or runtime containers.
 
 The job summary classifies the result:
 
-- `unchanged`: detection and redacted observations agree, including expected absence.
+- `unchanged`: detection and environment observations agree, including expected absence.
 - `detection_regression`: a previously detected identity disappears or changes.
 - `new_detection`: a known gap now produces an identity with the current library.
 - `new_candidates`: new nonblank environment names appear in the agent tool;
   names also observed in the available non-agent control are excluded as candidates.
 - `contract_changed` / `observations_changed`: marker predicates, session checks,
-  control checks, or other redacted observations differ.
+  control checks, or other environment observations differ.
 - `baseline_failed`, `execution_failed`, or `resolution_or_evidence_error`:
   the comparison could not establish the required execution evidence.
 
 Every delta or execution/resolution failure makes its watcher job fail so it is
 visible in Actions and normal GitHub workflow notifications. Per-harness artifacts retain resolved build
-metadata, both sanitized reports, the structured comparison and Markdown summary
+metadata, both validated reports, the structured comparison and Markdown summary
 for 90 days. Investigate a candidate with source and non-agent controls before
-adding an identity rule. Reviewed safe values are exported; other values are
-redacted inside the container. Changes between two redacted values cannot be
-compared across runs. A new name is a lead, not proof of an agent-only marker.
+adding an identity rule. All variable values are recorded exactly. Generated
+session IDs, container hostnames and temporary paths can change on every run;
+these appear in comparisons too and are not evidence of a detection regression.
+A new name is a lead, not proof of an agent-only marker.
 
 ### Versioned inventory and review issues
 
@@ -228,11 +229,11 @@ variable present in the command environment, including inherited configuration
 and empty strings. There are no detection summaries, controls, versions or run
 metadata in the inventory; those remain in the CI reports and artifacts.
 
-The collector preserves reviewed safe values such as `AGENT=crush`, `KILO=1`,
-and `HERMES_AGENT=true`. Credentials, session IDs and unreviewed values become
-`<redacted>` **inside the container**, before any output is exported. The shared
-[value policy](value_policy.json) limits which literals and public identity/version
-formats may leave the container; the runner and publisher validate them again.
+The collector preserves every value exactly, including unfamiliar strings, dummy
+API keys, paths and generated session IDs. There is no redaction, value allowlist,
+truncation or ID normalization. Discovery is restricted to isolated mock runs:
+no real provider credentials, host environment or user configuration are supplied.
+JSON retains the exact strings; the reference sheet escapes them only for display.
 Variable names must match `[A-Za-z_][A-Za-z0-9_]{0,95}`; invalid/long names are
 omitted, and more than 256 names fails validation rather than silently truncating.
 Removed variables are absent from the inventory; their removal appears in the delta.
@@ -256,7 +257,7 @@ Variable additions, removals and value changes create an investigation issue wit
 the before/after delta, tested versions, evidence link and inventory PR. Detection
 changes and unavailable probes also create issues, even if the inventory is
 unchanged. Reports are observations, not diagnoses of an upstream defect: review
-whether a change is a compatible migration, a rule to add, a collector/policy
+whether a change is a compatible migration, a rule to add, a collector
 change, or a possible regression.
 
 A new CLI version alone creates no inventory PR or issue when variables, values
@@ -310,17 +311,17 @@ exports full environments, matched signal values, session IDs, trace IDs, model
 credentials, or `Debug` output. This matters because the legacy detector can
 still copy `COPILOT_GITHUB_TOKEN` into a signal; removing that rule is separate
 work in [issue #5](https://github.com/sdairs/is-ai-agent/issues/5).
-Discovery additionally exports valid environment variable names, change categories,
-nonblank booleans, reviewed safe values and allowlisted executable names. Credentials,
-session IDs and unreviewed values are redacted. Its raw comparison baseline stays
-in the disposable container tmpfs; raw environments, hashes and process arguments
-are never included in artifacts. Discovery is disabled in live mode.
+Discovery exports valid environment variable names, their complete values, change
+categories, nonblank booleans and allowlisted executable names. Mock API keys,
+container paths and generated IDs are retained unmodified. Its comparison baseline
+file stays in the disposable container tmpfs. Discovery is disabled in live mode;
+the optional live gateway's real credential never enters the agent container or image.
 
 Raw CLI transcripts are processed in memory and discarded. Docker runtime logs
 are disabled. Unknown artifact fields and non-boolean marker values are rejected.
 Provider-side tool evidence is also processed in memory and discarded. Its read
 endpoint exists only in mock mode on the private container network. The workflow
-uploads the sanitized output directory, never CLI homes or logs.
+uploads the validated output directory, never CLI homes or logs.
 
 ## Optional live inference (local only)
 
@@ -374,7 +375,7 @@ python3 tests/harnesses/compare.py /path/to/before/report.json /path/to/after/re
 
 The comparison requires verified real command execution on the same harness and
 platform. It compares identity, signal, marker predicates, session matches and
-redacted environment observations. Exit codes: 0 unchanged, 1 drift, 2 invalid or
+exact environment observations. Exit codes: 0 unchanged, 1 drift, 2 invalid or
 incomplete evidence. It ignores timestamps, nonces and image IDs. A new variable
 is a research lead, not an automatically accepted rule. Older probe schemas can
 produce an expected diff when newly collected boolean fields appear.

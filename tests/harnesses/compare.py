@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare two sanitized discovery reports; exit 1 for drift, 2 for invalid evidence."""
+"""Compare two validated discovery reports; exit 1 for drift, 2 for invalid evidence."""
 import argparse
 import json
 from pathlib import Path
@@ -11,8 +11,8 @@ def observation(report):
     if report.get("stage") != "complete" or not report.get("checks", {}).get("real_shell_tool_executed"):
         raise ValueError("Both reports must contain a verified real tool execution")
     probe = report["probe"]
-    # Reports may be from an older library/probe schema. Compare only the known
-    # redacted fields; never render arbitrary fields from an input report.
+    # Reports may be from an older library/probe schema. Compare only validated
+    # fields, including exact environment values where available.
     if probe.get("agent") not in [None, "unknown", *run.HARNESS]:
         raise ValueError("Unknown identity")
     if probe.get("signal") not in [None, "AGENT", "AI_AGENT", *run.MARKERS]:
@@ -30,7 +30,7 @@ def observation(report):
     discovery = run.validate_discovery(report["discovery"]["agent"], probe["nonce"])
     for name, info in discovery["environment"].items():
         fields[f"environment.{name}"] = info
-    # Ancestry, host IDs, times and run nonces are deliberately not drift gates.
+    # Report metadata and ancestry are excluded; environment values are compared exactly.
     return fields
 
 
@@ -51,7 +51,7 @@ def main():
         before, after = (json.loads(path.read_text()) for path in (args.before, args.after))
         changes = compare(before, after)
     except (OSError, ValueError, KeyError, TypeError):
-        print("Cannot compare: require two complete, sanitized discovery reports for the same harness/platform.")
+        print("Cannot compare: require two complete, validated discovery reports for the same harness/platform.")
         return 2
     print(json.dumps({"drift": bool(changes), "changes": changes}, indent=2))
     return int(bool(changes))

@@ -1,21 +1,9 @@
-// Mock-only discovery. Export only reviewed safe values. Everything else stays
-// in memory or the disposable container's private tmpfs baseline.
+// Mock-only discovery. Preserve exact values from the isolated test environment.
 import { readFileSync, readlinkSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const validName = /^[A-Za-z_][A-Za-z0-9_]{0,95}$/;
-const policy = JSON.parse(readFileSync(new URL("./value_policy.json", import.meta.url), "utf8"));
-const fullMatch = (pattern, value) => new RegExp(pattern, "i").exec(value)?.[0] === value;
-
-export function safeValue(name, value) {
-  if (typeof value !== "string") return null;
-  if (new RegExp(policy.sensitive_name, "i").test(name)) return policy.redacted;
-  if (policy.literals.includes(value) || policy.by_name[name]?.includes(value)) return value;
-  if (policy.identity_names.includes(name) && fullMatch(policy.identity_pattern, value)) return value;
-  if (policy.version_names.includes(name) && fullMatch(policy.version_pattern, value)) return value;
-  return policy.redacted;
-}
 const executables = new Set(["agent-probe", "node", "bash", "sh", "dash", "zsh",
   "goose", "cline", "pi", "qwen", "opencode", "copilot", "crush", "codex", "claude", "gemini"]);
 
@@ -25,7 +13,7 @@ export function compareEnvironment(before, after) {
       change: !(name in before) ? "added" : !(name in after) ? "removed"
         : before[name] === after[name] ? "unchanged" : "changed",
       nonblank: typeof after[name] === "string" && after[name].trim().length > 0,
-      value: safeValue(name, after[name]),
+      value: Object.hasOwn(after, name) ? after[name] : null,
     }]));
 }
 
@@ -47,11 +35,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [destination, nonce] = process.argv.slice(2);
   if (process.argv.length !== 4 || !/^[a-f0-9]{32}$/.test(nonce)) throw new Error("Invalid discovery arguments");
   const before = JSON.parse(readFileSync("/tmp/probe-baseline.json", "utf8"));
-  const record = { schema: 2, nonce, environment: compareEnvironment(before, process.env),
+  const record = { schema: 3, nonce, environment: compareEnvironment(before, process.env),
     // Start at the Rust probe. The helper's own Node process is excluded.
     ancestry: ancestry(process.ppid) };
   const text = JSON.stringify(record) + "\n";
-  // Sanitized output must be readable by the host runner's different UID on
+  // Probe output must be readable by the host runner's different UID on
   // Linux. Its host parent is private; the raw tmpfs baseline stays mode 0600.
   writeFileSync(destination, text, { flag: "wx", mode: 0o644 });
   process.stdout.write(text);

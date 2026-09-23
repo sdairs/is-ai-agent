@@ -147,7 +147,7 @@ with Docker or OrbStack. Reports retain versions, platform, source fingerprints,
 identity and session checks, and correlated execution evidence.
 
 The [discovery workflow](tests/harnesses/discovery.md) compares real tool
-environments with controls, exporting reviewed safe values and redacting the rest. Trial version pins
+environments with controls, recording exact values from isolated mock runs. Trial version pins
 and report comparisons make new releases and changed signals reviewable before
 updating the detector. See the test lab README for commands and coverage limits.
 
@@ -155,9 +155,9 @@ PRs and releases test reviewed pins plus selected older compatibility versions.
 A separate [Saturday watcher](.github/workflows/harness-watch.yml) resolves the
 latest releases and compares fresh observations with each pin. It reports lost
 detection, newly detectable agents, new candidate variable names, and execution
-failures separately, retaining sanitized evidence for review.
+failures separately, retaining execution evidence for review.
 The [environment inventory](tests/harnesses/inventory/README.md) is a generated
-reference sheet of harnesses, variables and sanitized values, kept separately from detector rules. Weekly changes propose an
+reference sheet of harnesses, variables and exact values, kept separately from detector rules. Weekly changes propose an
 inventory-only PR; meaningful signal changes get a deduplicated investigation issue.
 
 ## License

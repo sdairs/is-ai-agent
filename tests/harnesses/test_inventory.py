@@ -21,9 +21,9 @@ def report(name="pi", nonce="a" * 32):
              "session_matches": {key: False for key in run.SESSIONS},
              "generic_markers": {"AGENT": None, "AI_AGENT": None}}
     control = {**probe, "agent": None, "signal": None, "markers": {key: False for key in run.MARKERS}}
-    discovery = {"schema": 2, "nonce": nonce, "ancestry": ["pi"], "environment": {
+    discovery = {"schema": 3, "nonce": nonce, "ancestry": ["pi"], "environment": {
         "PI_CODING_AGENT": {"change": "added", "nonblank": True, "value": "1"},
-        "PATH": {"change": "unchanged", "nonblank": True, "value": "<redacted>"}}}
+        "PATH": {"change": "unchanged", "nonblank": True, "value": "/usr/local/bin:/usr/bin:/bin"}}}
     return {"harness": name, "harness_version": run.HARNESS[name]["version"], "stage": "complete",
             "status": "pass", "mode": "mock", "platform": "linux/amd64", "timestamp": "2026-09-23T15:00:00+00:00",
             "checks": {"real_shell_tool_executed": True}, "probe": probe, "control": control,
@@ -55,10 +55,10 @@ class InventoryTests(unittest.TestCase):
             "REMOVED": {"change": "removed", "nonblank": False, "value": None},
         })
         doc = {"pi": inventory.observation(r)}
-        self.assertEqual(doc, {"pi": {"PI_CODING_AGENT": "1", "PATH": "<redacted>", "AI_AGENT": "pi", "EMPTY": ""}})
+        self.assertEqual(doc, {"pi": {"PI_CODING_AGENT": "1", "PATH": "/usr/local/bin:/usr/bin:/bin", "AI_AGENT": "pi", "EMPTY": ""}})
         sheet = inventory.render(doc)
-        self.assertIn("| `AI_AGENT` | `pi` |", sheet)
-        self.assertIn('| `EMPTY` | `""` |', sheet)
+        self.assertIn("| `AI_AGENT` | <code>&quot;pi&quot;</code> |", sheet)
+        self.assertIn("| `EMPTY` | <code>&quot;&quot;</code> |", sheet)
         self.assertEqual(sheet, inventory.render(json.loads(json.dumps(doc, sort_keys=True))))
 
     def test_names_and_values_are_diffed_without_interpreting_detector_rules(self):
@@ -69,7 +69,7 @@ class InventoryTests(unittest.TestCase):
         after["pi"]["PATH"] = ""
         self.assertEqual(inventory.difference(before, after), {"pi": {
             "added": {"AGENT": "pi"}, "removed": {"PI_CODING_AGENT": "1"},
-            "changed": {"PATH": {"before": "<redacted>", "after": ""}}}})
+            "changed": {"PATH": {"before": "/usr/local/bin:/usr/bin:/bin", "after": ""}}}})
 
     def test_version_date_and_detection_are_not_inventory_fields(self):
         r = report()
@@ -78,20 +78,35 @@ class InventoryTests(unittest.TestCase):
         r["probe"]["agent"] = None
         self.assertEqual(before, inventory.observation(r))
 
-    def test_unknown_names_are_retained_but_unapproved_values_are_rejected(self):
+    def test_all_mock_values_are_retained_and_markup_is_escaped_for_display(self):
         r = report()
+        values = {"API_KEY": "not-a-secret", "SESSION_ID": "generated-session-123",
+                  "new_agent_context": 'arbitrary `value` | <b>markup</b>\nsecond line',
+                  "CONFIG": "x" * 1024, "EMPTY": "", "SPACES": "  ", "UNICODE": "日本語"}
         env = r["discovery"]["agent"]["environment"]
-        env["new_agent_context"] = {"change": "added", "nonblank": True, "value": "<redacted>"}
-        self.assertIn("new_agent_context", inventory.observation(r))
-        for name, value in [("new_agent_context", "sentinel-secret"), ("TOKEN", "true"), ("SESSION_ID", "1")]:
-            with self.subTest(name=name), self.assertRaises(ValueError):
-                inventory.validate_document({"pi": {name: value}})
-        env["new_agent_context"]["value"] = "sentinel-secret"
-        with self.assertRaises(ValueError):
-            inventory.observation(r)
+        env.update({name: {"change": "added", "nonblank": bool(value.strip()), "value": value}
+                    for name, value in values.items()})
+        doc = {"pi": inventory.observation(r)}
+        for name, value in values.items():
+            self.assertEqual(doc["pi"][name], value)
+        self.assertEqual(json.loads(json.dumps(doc)), doc)
+        sheet = inventory.render(doc)
+        self.assertNotIn("<b>", sheet)
+        self.assertIn("&#124;", sheet)
+        self.assertIn("&#96;value&#96;", sheet)
+        self.assertIn("not-a-secret", sheet)
+        summary = inventory.report_markdown(inventory.difference({}, doc), {}, RUN_URL, {})
+        self.assertIn("&#124;", summary)
+        self.assertNotIn("<b>", summary)
+        for value in [None, 1, True, [], {}]:
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                inventory.validate_document({"pi": {"NEW": value}})
 
     def test_historical_reports_cannot_invent_values(self):
         r = report()
+        r["discovery"]["agent"]["schema"] = 2
+        with self.assertRaises(ValueError):
+            inventory.observation(r)
         r["discovery"]["agent"]["schema"] = 1
         for info in r["discovery"]["agent"]["environment"].values():
             del info["value"]
@@ -257,8 +272,8 @@ class PublisherTests(unittest.TestCase):
         self.assertIn("pulls/7", [c[0] for c in writes])
         self.assertNotIn("pulls", [c[0] for c in writes])
 
-    def test_artifact_values_or_failed_snapshot_replacement_cannot_be_published(self):
-        self.new["pi"]["TOKEN"] = "sentinel-secret"
+    def test_invalid_types_or_failed_snapshot_replacement_cannot_be_published(self):
+        self.new["pi"]["TOKEN"] = {"unexpected": "object"}
         with self.assertRaises(ValueError):
             self.publish()
         self.new = copy.deepcopy(self.old)

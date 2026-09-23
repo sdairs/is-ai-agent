@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a redacted, descriptive inventory from verified watcher artifacts."""
+"""Build an exact environment inventory from verified watcher artifacts."""
 import argparse
 import copy
 import json
@@ -32,9 +32,8 @@ def validate_document(document):
             raise ValueError("Invalid inventory entry")
         for variable, value in environment.items():
             if (not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,95}", variable)
-                    or not isinstance(value, str) or len(value) > 128
-                    or run.safe_value(variable, value) != value):
-                raise ValueError("Unapproved inventory value")
+                    or not isinstance(value, str)):
+                raise ValueError("Invalid inventory value")
     return document
 
 
@@ -76,8 +75,8 @@ def verified(report, name):
 def observation(report):
     verified(report, report["harness"])
     discovery = report["discovery"]["agent"]
-    if discovery["schema"] != 2:
-        raise ValueError("Fresh discovery with sanitized values is required")
+    if discovery["schema"] != 3:
+        raise ValueError("Fresh discovery with exact values is required")
     environment = {name: info["value"] for name, info in discovery["environment"].items()
                    if info["change"] != "removed"}
     validate_document({report["harness"]: environment})
@@ -148,14 +147,14 @@ def render(document):
     validate_document(document)
     lines = ["# Observed harness environments", "",
              "Variables present in each harness's Linux command environment, including inherited configuration. "
-             "Reviewed safe values are shown literally; credentials, session IDs and unreviewed values are `<redacted>`. "
-             "An empty string is shown as `\"\"`.", "",
+             "Values are captured exactly from isolated mock runs, including dummy API keys and generated session IDs. "
+             "The table uses JSON string notation to preserve whitespace and empty strings.", "",
              "Generated from verified probes. Test results and execution details live in the CI artifacts; "
              "the detector does not read this inventory."]
     for name, environment in sorted(document.items()):
         lines += ["", f"## {name}", "", "| Variable | Value |", "| --- | --- |"]
         for variable, value in sorted(environment.items()):
-            lines.append(f"| `{variable}` | `{value if value else chr(34) * 2}` |")
+            lines.append(f"| `{variable}` | {run.markdown_value(value)} |")
     return "\n".join(lines) + "\n"
 
 
@@ -167,11 +166,11 @@ def report_markdown(changes, errors, run_url, runs):
         lines += [f"## {name}: inventory delta", "",
                   "| Variable | Before | After |", "| --- | --- | --- |"]
         for key, value in change["added"].items():
-            lines.append(f"| `{key}` | absent | `{json.dumps(value)}` |")
+            lines.append(f"| `{key}` | absent | {run.markdown_value(value)} |")
         for key, value in change["removed"].items():
-            lines.append(f"| `{key}` | `{json.dumps(value)}` | absent |")
+            lines.append(f"| `{key}` | {run.markdown_value(value)} | absent |")
         for key, values in change["changed"].items():
-            lines.append(f"| `{key}` | `{json.dumps(values['before'])}` | `{json.dumps(values['after'])}` |")
+            lines.append(f"| `{key}` | {run.markdown_value(values['before'])} | {run.markdown_value(values['after'])} |")
         lines.append("")
     for name, result in sorted(runs.items()):
         if name in changes or result["outcome"] != "unchanged":
@@ -185,7 +184,7 @@ def report_markdown(changes, errors, run_url, runs):
         lines += ["No inventory or test changes. No commit or issue is needed.", ""]
     else:
         lines += ["Review the changed variables and controls, reproduce with the recorded version, then check upstream "
-                  "documentation/source. Changes to our collector or redaction policy can also change the inventory; "
+                  "documentation/source. Changes to our collector can also change the inventory; "
                   "do not attribute every delta to upstream.", ""]
     return "\n".join(lines)
 

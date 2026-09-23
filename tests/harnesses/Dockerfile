@@ -15,7 +15,6 @@ RUN node /opt/install.mjs ${HARNESS_PACKAGE} ${HARNESS_VERSION}
 COPY --from=probe /build/target/release/examples/probe /usr/local/bin/agent-probe
 COPY tests/harnesses/entrypoint.mjs /opt/entrypoint.mjs
 COPY tests/harnesses/discover.mjs /opt/discover.mjs
-COPY tests/harnesses/value_policy.json /opt/value_policy.json
 USER node
 WORKDIR /work
 ENTRYPOINT ["node", "/opt/entrypoint.mjs"]
