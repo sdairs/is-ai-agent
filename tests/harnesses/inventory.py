@@ -167,28 +167,31 @@ def collect(previous, artifacts, names, run_url):
             errors[name] = {"stage": "missing", "reason": "missing_or_duplicate_artifact"}
             continue
         parent = paths[0].parent
+        candidate_version = None
         try:
+            if (parent / "resolved.json").is_file():
+                resolved = json.loads((parent / "resolved.json").read_text())
+                candidate_version = releases.exact_version(resolved["version"])
             before = json.loads((parent / "baseline.json").read_text())
             after = json.loads((parent / "candidate.json").read_text())
             for report in (before, after):
                 if report.get("stage") != "complete" or report.get("checks", {}).get("real_shell_tool_executed") is not True:
                     stage = report.get("stage")
-                    errors[name] = {"stage": stage if stage in STAGES else "invalid", "reason": "unverified_execution"}
+                    errors[name] = {"stage": stage if stage in STAGES else "invalid", "reason": "unverified_execution", "version": candidate_version}
                     break
                 verified(report, name)
             else:
                 if (before["platform"] != after["platform"] or before["probe"]["nonce"] == after["probe"]["nonce"]
                         or any(before[k] != after[k] for k in PROVENANCE)):
                     raise ValueError("Comparison must use fresh probes on the same measurement code/platform")
-                resolved = json.loads((parent / "resolved.json").read_text())
-                if after["harness_version"] != resolved["version"]:
+                if after["harness_version"] != candidate_version:
                     raise ValueError("Resolved version differs from execution")
                 entry = observation(after, run_url)
                 old = previous["harnesses"].get(name)
                 if old is None or substantive(old) != substantive(entry):
                     result["harnesses"][name] = entry
         except (OSError, ValueError, KeyError, TypeError):
-            errors[name] = {"stage": "invalid", "reason": "invalid_or_incomplete_evidence"}
+            errors[name] = {"stage": "invalid", "reason": "invalid_or_incomplete_evidence", "version": candidate_version}
     return result, errors
 
 
@@ -240,7 +243,7 @@ def report_markdown(changes, errors, run_url):
                 lines.append(f"| `{key}` | `{json.dumps(values['before'], sort_keys=True)}` | `{json.dumps(values['after'], sort_keys=True)}` |")
             lines.append("")
     for name, error in errors.items():
-        lines += [f"## {name}: probe unavailable", "", f"Stage: `{error['stage']}`; reason: `{error['reason']}`. Previous inventory retained; no missing-marker conclusion.", ""]
+        lines += [f"## {name}: probe unavailable", "", f"Candidate: `{error.get('version') or 'unresolved'}`; stage: `{error['stage']}`; reason: `{error['reason']}`. Previous inventory retained; no missing-marker conclusion.", ""]
     if not changes and not errors:
         lines += ["No inventory changes. No commit or issue is needed.", ""]
     if meaningful or errors:

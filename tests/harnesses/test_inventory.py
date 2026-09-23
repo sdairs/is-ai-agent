@@ -205,6 +205,14 @@ class PublisherTests(unittest.TestCase):
         writes = [c[0] for c in self.api.calls if c[1] != "GET"]
         self.assertEqual(writes, ["issues"])
 
+    def test_failure_in_a_different_version_is_not_silenced_by_old_closed_issue(self):
+        self.publish({"pi": {"stage": "agent", "reason": "unverified_execution", "version": "0.88.0"}})
+        old = next(c[2] for c in self.api.calls if c[0] == "issues" and c[1] == "POST")
+        self.api.issues = [{"number": 8, "state": "closed", "user": {"login": "github-actions[bot]"}, "body": old["body"]}]
+        self.api.calls.clear()
+        self.publish({"pi": {"stage": "agent", "reason": "unverified_execution", "version": "0.89.0"}})
+        self.assertTrue([c for c in self.api.calls if c[0] == "issues" and c[1] == "POST"])
+
     def test_stale_run_or_unrelated_branch_changes_cannot_be_overwritten(self):
         self.api.head = "f" * 40
         with self.assertRaises(ValueError):

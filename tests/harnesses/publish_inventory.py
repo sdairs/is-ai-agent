@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 import inventory
+import releases
 import run
 
 BRANCH = "codex/harness-inventory"
@@ -41,9 +42,11 @@ def validate_errors(errors):
     if not isinstance(errors, dict):
         raise ValueError("Invalid errors")
     for name, error in errors.items():
-        if (name not in run.HARNESS or set(error) != {"stage", "reason"} or error["stage"] not in inventory.STAGES
+        if (name not in run.HARNESS or set(error) not in ({"stage", "reason"}, {"stage", "reason", "version"}) or error["stage"] not in inventory.STAGES
                 or error["reason"] not in {"missing_or_duplicate_artifact", "unverified_execution", "invalid_or_incomplete_evidence"}):
             raise ValueError("Invalid error fields")
+        if error.get("version") is not None:
+            releases.exact_version(error["version"])
 
 
 def publish(api, old, new, errors, *, default_branch, tested_sha, run_url):
