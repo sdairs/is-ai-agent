@@ -113,11 +113,21 @@ class Handler(BaseHTTPRequestHandler):
         completed = any(m.get("role") == "tool" for m in messages)
         shell_tools = [t["function"] for t in body.get("tools", [])
                        if self.is_shell(t.get("function", {}).get("name", ""))]
+        submit = next((t["function"] for t in body.get("tools", [])
+                       if t.get("function", {}).get("name") == "submit"), None)
         if completed or not shell_tools:
             delta = {"content": "Probe command completed."}
             reason = "stop"
             if completed:
                 self.evidence["final_responses"] += 1
+                # Junie's normal completion protocol requires its submit tool.
+                # This does not execute a command or supply detection markers.
+                if submit and "solution_summary" in submit.get("parameters", {}).get("properties", {}):
+                    delta = {"tool_calls": [{"index": 0, "id": "finishprobe", "type": "function", "function": {
+                        "name": "submit", "arguments": json.dumps({"solution_summary":
+                            "### Summary\n- Ran detector probe.\n### Changes\n- Created probe artifact.\n### Verification\n- Command returned its result."}),
+                    }}]}
+                    reason = "tool_calls"
         else:
             prompt = " ".join(str(m.get("content", "")) for m in messages if m.get("role") == "user")
             command = re.search(r"/usr/local/bin/agent-probe /artifacts/agent.json [0-9a-f]{32}(?: --discover)?", prompt)
@@ -126,7 +136,7 @@ class Handler(BaseHTTPRequestHandler):
             tool = shell_tools[0]
             arguments = self.arguments(tool, command[0])
             self.record_call(tool["name"], command[0])
-            delta = {"tool_calls": [{"index": 0, "id": "call_probe", "type": "function", "function": {
+            delta = {"tool_calls": [{"index": 0, "id": "callprobe", "type": "function", "function": {
                 "name": tool["name"], "arguments": json.dumps(arguments),
             }}]}
             reason = "tool_calls"
@@ -150,7 +160,7 @@ class Handler(BaseHTTPRequestHandler):
 
     @staticmethod
     def is_shell(name):
-        return name in ("bash", "Bash", "run_shell_command", "execute_command", "exec_command", "shell", "shell_command", "run_command", "run_commands", "developer__shell")
+        return name in ("bash", "Bash", "run_shell_command", "execute_command", "exec_command", "shell", "shell_command", "run_command", "run_commands", "developer__shell", "exec", "terminal", "unified_exec")
 
     @staticmethod
     def arguments(tool, command):
@@ -167,7 +177,7 @@ class Handler(BaseHTTPRequestHandler):
         return args
 
     def record_call(self, name, command):
-        self.evidence["calls"].append({"id": "call_probe", "name": name, "command": command})
+        self.evidence["calls"].append({"id": "callprobe", "name": name, "command": command})
 
     def record_result(self, call_id, content, error=False):
         if isinstance(content, list):
@@ -203,7 +213,7 @@ class Handler(BaseHTTPRequestHandler):
         selected = None if completed else self.select(body.get("tools", []), body.get("messages", []))
         if completed:
             self.evidence["final_responses"] += 1
-        block = {"type": "tool_use", "id": "call_probe", "name": selected[0], "input": selected[1]} if selected else {"type": "text", "text": "Probe command completed."}
+        block = {"type": "tool_use", "id": "callprobe", "name": selected[0], "input": selected[1]} if selected else {"type": "text", "text": "Probe command completed."}
         reason = "tool_use" if selected else "end_turn"
         message = {"id": "msg_probe", "type": "message", "role": "assistant", "model": body.get("model"),
                    "content": [block], "stop_reason": reason, "stop_sequence": None, "usage": {"input_tokens": 1, "output_tokens": 1}}
@@ -233,7 +243,7 @@ class Handler(BaseHTTPRequestHandler):
         selected = None if completed else self.select(tools, body.get("input", []))
         if completed:
             self.evidence["final_responses"] += 1
-        item = {"type": "function_call", "id": "fc_probe", "call_id": "call_probe", "name": selected[0],
+        item = {"type": "function_call", "id": "fc_probe", "call_id": "callprobe", "name": selected[0],
                 "arguments": json.dumps(selected[1]), "status": "completed"} if selected else {
                 "type": "message", "id": "msg_probe", "role": "assistant", "status": "completed",
                 "content": [{"type": "output_text", "text": "Probe command completed.", "annotations": []}]}
@@ -256,12 +266,12 @@ class Handler(BaseHTTPRequestHandler):
                 if "functionResponse" in part:
                     completed = True
                     result = part["functionResponse"]
-                    self.record_result(result.get("id", "call_probe"), result.get("response"), bool(result.get("response", {}).get("error")))
+                    self.record_result(result.get("id", "callprobe"), result.get("response"), bool(result.get("response", {}).get("error")))
         tools = [t for group in body.get("tools", []) for t in group.get("functionDeclarations", [])]
         selected = None if completed else self.select(tools, body.get("contents", []))
         if completed:
             self.evidence["final_responses"] += 1
-        part = {"functionCall": {"name": selected[0], "args": selected[1], "id": "call_probe"}} if selected else {"text": "Probe command completed."}
+        part = {"functionCall": {"name": selected[0], "args": selected[1], "id": "callprobe"}} if selected else {"text": "Probe command completed."}
         response = {"candidates": [{"content": {"role": "model", "parts": [part]}, "finishReason": "STOP", "index": 0}],
                     "usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1, "totalTokenCount": 2}, "modelVersion": "gemini-2.5-flash"}
         if ":streamGenerateContent" in self.path:

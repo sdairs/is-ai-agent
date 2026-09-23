@@ -110,6 +110,11 @@ pub enum AgentId {
     OpenHands,
     /// Volcengine veCLI, a Gemini CLI fork.
     VeCli,
+    DeepSeekHarness,
+    KiloCode,
+    OpenClaw,
+    HermesAgent,
+    VTCode,
     V0,
     Unknown,
 }
@@ -150,6 +155,11 @@ impl AgentId {
             AgentId::Firebender => "firebender",
             AgentId::OpenHands => "openhands",
             AgentId::VeCli => "vecli",
+            AgentId::DeepSeekHarness => "deepseek-harness",
+            AgentId::KiloCode => "kilo-code",
+            AgentId::OpenClaw => "openclaw",
+            AgentId::HermesAgent => "hermes-agent",
+            AgentId::VTCode => "vtcode",
             AgentId::V0 => "v0",
             AgentId::Unknown => "unknown",
         }
@@ -275,6 +285,8 @@ const SESSION_ID_VARS: &[(AgentId, &[&str])] = &[
     (AgentId::Amp, &["AMP_CURRENT_THREAD_ID", "AGENT_THREAD_ID"]),
     (AgentId::QwenCode, &["QWEN_CODE_SESSION_ID"]),
     (AgentId::Pi, &["PI_SESSION_ID"]),
+    (AgentId::DeepSeekHarness, &["DSH_SESSION_ID"]),
+    (AgentId::HermesAgent, &["HERMES_SESSION_ID"]),
     // Cursor exposes only a trace id; its per-session vs per-command scope is
     // undocumented, so callers correlating on it should expect possible churn.
     (AgentId::Cursor, &["CURSOR_TRACE_ID"]),
@@ -428,6 +440,26 @@ where
         }
     }
 
+    // Verified through real CLI shell invocations. Match literal values:
+    // OpenClaw also marks human/ACP shells with other OPENCLAW_SHELL values.
+    // Kilo inherits OPENCODE, so its identity must precede that fallback.
+    for (var, expected, id, name) in [
+        (
+            "DSH_SHELL",
+            "1",
+            AgentId::DeepSeekHarness,
+            "DeepSeek Harness",
+        ),
+        ("KILO", "1", AgentId::KiloCode, "Kilo Code"),
+        ("VTCODE", "1", AgentId::VTCode, "VTCode"),
+        ("HERMES_AGENT", "true", AgentId::HermesAgent, "Hermes Agent"),
+        ("OPENCLAW_SHELL", "exec", AgentId::OpenClaw, "OpenClaw"),
+    ] {
+        if let Some(value) = env(var).filter(|value| value == expected) {
+            return Some(make(id, name, Signal::EnvVar { name: var, value }));
+        }
+    }
+
     for &(var, id, name) in TOOL_VARS {
         if let Some(value) = nonempty(env(var)) {
             return Some(make(id, name, Signal::EnvVar { name: var, value }));
@@ -467,7 +499,12 @@ where
         .find(|(agent, _)| *agent == id)
         .map(|(_, vars)| *vars)?;
     vars.iter().find_map(|var| {
-        nonempty(env(var)).filter(|value| id != AgentId::Pi || !value.trim().is_empty())
+        nonempty(env(var)).filter(|value| {
+            !matches!(
+                id,
+                AgentId::Pi | AgentId::DeepSeekHarness | AgentId::HermesAgent
+            ) || !value.trim().is_empty()
+        })
     })
 }
 
@@ -530,6 +567,11 @@ fn classify_agent_value(value: &str) -> (AgentId, &'static str) {
         "firebender" => (AgentId::Firebender, "Firebender"),
         "openhands" => (AgentId::OpenHands, "OpenHands"),
         "vecli" => (AgentId::VeCli, "veCLI"),
+        "deepseek-harness" | "dsh" => (AgentId::DeepSeekHarness, "DeepSeek Harness"),
+        "kilo-code" | "kilo" | "kilocode" => (AgentId::KiloCode, "Kilo Code"),
+        "openclaw" => (AgentId::OpenClaw, "OpenClaw"),
+        "hermes" | "hermes-agent" => (AgentId::HermesAgent, "Hermes Agent"),
+        "vtcode" => (AgentId::VTCode, "VTCode"),
         "v0" => (AgentId::V0, "v0"),
         _ => (AgentId::Unknown, "AI agent"),
     }
@@ -546,6 +588,72 @@ mod tests {
             .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
             .collect();
         move |name| map.get(name).cloned()
+    }
+
+    #[test]
+    fn probed_markers_require_exact_values() {
+        for (var, value, id) in [
+            ("DSH_SHELL", "1", AgentId::DeepSeekHarness),
+            ("KILO", "1", AgentId::KiloCode),
+            ("VTCODE", "1", AgentId::VTCode),
+            ("HERMES_AGENT", "true", AgentId::HermesAgent),
+            ("OPENCLAW_SHELL", "exec", AgentId::OpenClaw),
+        ] {
+            assert_eq!(
+                detect_with(env_from(&[(var, value)]), |_| false)
+                    .unwrap()
+                    .id,
+                id
+            );
+            for wrong in [
+                "",
+                " ",
+                "0",
+                "false",
+                "TRUE",
+                "tui-local",
+                "acp-client",
+                "acp",
+            ] {
+                assert!(detect_with(env_from(&[(var, wrong)]), |_| false).is_none());
+            }
+            let padded = format!(" {value} ");
+            assert!(detect_with(env_from(&[(var, &padded)]), |_| false).is_none());
+            assert_eq!(
+                detect_with(env_from(&[("AGENT", "goose"), (var, value)]), |_| false)
+                    .unwrap()
+                    .id,
+                AgentId::Goose
+            );
+        }
+    }
+
+    #[test]
+    fn kilo_marker_precedes_inherited_opencode() {
+        let agent = detect_with(
+            env_from(&[("AGENT", "1"), ("KILO", "1"), ("OPENCODE", "1")]),
+            |_| false,
+        )
+        .unwrap();
+        assert_eq!(agent.id, AgentId::KiloCode);
+        assert_eq!(agent.session_id, None);
+    }
+
+    #[test]
+    fn deepseek_session_requires_agent_shell_identity() {
+        // The human web terminal also receives DSH_SESSION_ID.
+        assert!(detect_with(env_from(&[("DSH_SESSION_ID", "session")]), |_| false).is_none());
+        for session in ["", "  ", "opaque session"] {
+            let agent = detect_with(
+                env_from(&[("DSH_SHELL", "1"), ("DSH_SESSION_ID", session)]),
+                |_| false,
+            )
+            .unwrap();
+            assert_eq!(
+                agent.session_id.as_deref(),
+                (!session.trim().is_empty()).then_some(session)
+            );
+        }
     }
 
     #[test]
@@ -1332,6 +1440,11 @@ mod tests {
             AgentId::Firebender,
             AgentId::OpenHands,
             AgentId::VeCli,
+            AgentId::DeepSeekHarness,
+            AgentId::KiloCode,
+            AgentId::OpenClaw,
+            AgentId::HermesAgent,
+            AgentId::VTCode,
             AgentId::V0,
         ] {
             let slug = id.as_str();

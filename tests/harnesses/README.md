@@ -16,7 +16,13 @@ GitHub-hosted Linux runners.
 | Codex CLI | 0.156.1 | `exec_command` | Detected; `CODEX_THREAD_ID` |
 | Claude Code | 2.1.280 | `Bash` | Detected; `CLAUDE_CODE_SESSION_ID` |
 | Gemini CLI | 0.60.0 | `run_shell_command` | Detected; no session ID asserted |
-| Goose | 1.51.0 | `shell` (built-in developer extension) | **Known gap:** command runs, library returns `None` |
+| DeepSeek Harness | 0.1.5-rc.3 | `bash` | Detected via `DSH_SHELL=1`; `DSH_SESSION_ID` |
+| Kilo Code | 7.7.9 | `bash` | Detected via `KILO=1`, ahead of inherited OpenCode markers |
+| OpenClaw | 2026.9.5 | `exec` (`agent exec`, direct code mode) | Detected via `OPENCLAW_SHELL=exec` |
+| Hermes Agent | 0.21.4 (release v2026.9.21) | `terminal` (local backend) | Detected; `HERMES_SESSION_ID` |
+| VTCode | 0.169.1 | `exec_command` (single orchestration mode) | Detected via `VTCODE=1` |
+| Junie | npm 3110.7.0 / binary 26.9.7 (3110.7) | `bash`, then `submit` | **Pending rule:** real command works; launcher/session candidates need further controls |
+| Goose | 1.52.0 | `shell` (built-in developer extension) | **Known gap:** command runs, library returns `None` |
 | Cline CLI | 3.0.64 | `run_commands` | **Known gap:** command runs, library returns `None` |
 
 Versions, package names and expected signals live in
@@ -37,7 +43,8 @@ python3 tests/harnesses/run.py --harness claude-code
 ```
 
 Choose any harness ID in the manifest. The first build downloads public images
-and a published npm package (or a checksum-verified Goose release binary). Subsequent
+and a published npm package or checksum-verified release archive. Hermes uses its
+supported editable installation from an immutable, checksum-verified source snapshot. Subsequent
 builds reuse Docker's cache. `--skip-build` reuses an existing image only when its
 build-input fingerprint still matches. No harness is installed on the host.
 
@@ -55,7 +62,8 @@ The fake provider implements scripted Chat Completions, Responses, Anthropic
 Messages and Gemini API responses.
 It chooses the shell tool from the CLI's advertised tools and requests exactly
 one probe command. The CLI performs the command execution itself. The provider
-returns a final text response after receiving the tool result.
+returns a final response after receiving the tool result (Junie requires its
+advertised `submit` tool to terminate normally).
 
 A detection pass requires all of the following:
 
@@ -66,6 +74,8 @@ A detection pass requires all of the following:
 4. The library identifies the expected harness using its actual markers.
 5. The harness supplies the expected markers/session context, and the library
    returns the matching session ID (or none where the table specifies it).
+   Value-sensitive rules use explicit boolean predicate results (`exact_markers`),
+   so a nonblank but wrong marker value cannot pass.
 
 For Pi, Qwen Code and OpenCode, CLI events establish the command/result link.
 For the other adapters, the gateway records the requested shell tool and command,
@@ -86,7 +96,7 @@ New runs test the fixed implementation.
 
 ## Known detection gaps
 
-Goose 1.51.0 and Cline CLI 3.0.64 both execute the command and return the matching
+Goose 1.52.0 and Cline CLI 3.0.64 both execute the command and return the matching
 probe output, but `detect()` returns `None` in the tested Linux CLI environment.
 Goose supplies neither `GOOSE_TERMINAL` nor a recognised generic identity;
 Cline supplies neither `CLINE_ACTIVE` nor `CLINE_TASK_ID`. No marker is injected
@@ -104,18 +114,28 @@ Neither observation justifies a new default identity rule. The reusable
 `--discover` mode records redacted environment differences and diagnostic process
 ancestry so we can find and evaluate signals ourselves.
 
-Running either adapter normally exits nonzero and reports `fail`. CI explicitly
+Junie also executes the real probe and completes through its `submit` tool.
+We observed `JUNIE_SHIM_PATH` and `MATTERHORN_SESSION_ID`, but have not yet
+established an agent-only predicate or session lifecycle contract. The shim
+sets its marker before command dispatch. A trial of the interactive human `!`
+path did not produce a usable control; it is **not** evidence of absence.
+Junie therefore remains a discovery/known-gap job, with its observed candidate
+markers required to stay present, and no new Junie library rule yet.
+
+Running these adapters normally exits nonzero and reports `fail`. CI explicitly
 uses the documented observation mode:
 
 ```sh
 python3 tests/harnesses/run.py --harness goose --expect-undetected
 python3 tests/harnesses/run.py --harness cline --expect-undetected
+python3 tests/harnesses/run.py --harness junie --expect-undetected
 ```
 
 These jobs are labelled **known detection gap** and reports say `known-gap`,
 never `pass`. They must still execute the exact command successfully, return its
 matching fresh output, have no agent in the control shell, and produce exactly
-the expected absence of detection/session/identity markers. Infrastructure errors,
+the expected absence of detection/session attribution. Goose and Cline assert absent
+identity markers; Junie instead asserts its pending candidates remain present. Infrastructure errors,
 failed commands, unexpected attribution, or newly appearing expected markers fail
 CI. When detection becomes possible, remove the known-gap entry and switch the
 adapter to an ordinary detection test.
@@ -124,7 +144,7 @@ adapter to an ordinary detection test.
 
 [Harness integration tests](../../.github/workflows/harness-tests.yml) runs on
 pull requests, pushes to `main`, and manual dispatch. A separate matrix job runs
-each harness; one failure does not cancel the others. It also runs Rust tests,
+each harness, read directly from the manifest; one failure does not cancel the others. It also runs Rust tests,
 formatting, Clippy, documentation generation, and the Python verifier/gateway tests.
 Every matrix job enables `--discover`, including its configured-environment
 negative control and Cline's non-agent command control.
@@ -136,7 +156,7 @@ credentials. The publishing token is still confined to the publish step.
 
 Each matrix job uploads only schema-validated JSON evidence, retained for 14 days,
 even if a check fails. Reports distinguish `pass`, `fail` (a contract mismatch)
-and `error` (infrastructure/invalid evidence). The two explicitly labelled discovery
+and `error` (infrastructure/invalid evidence). The explicitly labelled discovery
 jobs can also report `known-gap`, as described above. Build failures remain visible
 in normal build logs. There is no blanket `continue-on-error` exemption.
 
@@ -181,7 +201,7 @@ Live mode is retained for manual provider checks. It is **not exposed by the
 GitHub workflow** and is not needed for detection CI. It requires an
 OpenAI-compatible streaming chat-completions endpoint with tool calls and Bearer
 authentication. It is currently supported only by the original Pi, Qwen Code and
-OpenCode adapters; the seven additional adapters require mock mode. Use the exact
+OpenCode adapters; the other adapters require mock mode. Use the exact
 model ID supported by your endpoint.
 
 ```sh
@@ -199,12 +219,41 @@ and requested output at 2,048 tokens per request. The CLI has a 150-second timeo
 These are request limits, not a billing guarantee. TLS verification stays enabled.
 The live route has not been tested against the private ClickHouse endpoint.
 
+## Trial a version and compare observations
+
+For npm adapters without separate binary metadata, `--version` overrides the
+pin **only for that run**. It validates an exact version, builds that version,
+checks the CLI's reported version and retains the existing signal contract.
+It does not edit the repository or accept `latest`/version ranges.
+
+```sh
+python3 tests/harnesses/run.py --harness qwen-code --discover
+python3 tests/harnesses/run.py --harness qwen-code --version 0.24.3 --discover
+python3 tests/harnesses/compare.py /path/to/before/report.json /path/to/after/report.json
+```
+
+The comparison requires verified real command execution on the same harness and
+platform. It compares identity, signal, marker predicates, session matches and
+redacted environment observations. Exit codes: 0 unchanged, 1 drift, 2 invalid or
+incomplete evidence. It ignores timestamps, nonces and image IDs. A new variable
+is a research lead, not an automatically accepted rule. Older probe schemas can
+produce an expected diff when newly collected boolean fields appear.
+
+After review, update the pin in `harnesses.json` and open a PR; the full CI matrix
+checks it again. Goose/VTCode release assets, Hermes source snapshots and Junie's
+separate binary version require explicit matching manifest metadata/checksums.
+`--version` refuses these rather than silently testing a different binary.
+Dependencies downloaded by package installers are not a complete hermetic lock;
+reports retain image/source fingerprints for that reason.
+
 ## Adding a harness
 
 Add an exact package version/contract to `harnesses.json`, a custom-provider
 configuration and normal CLI invocation to `entrypoint.mjs`, either a verifier
-for its actual execution events or the correlated provider roundtrip verifier in `run.py`, and a matrix entry in the workflow. Extend
-the probe's explicit marker/session allowlists only where needed. Include positive
+for its actual execution events or the correlated provider roundtrip verifier in `run.py`. CI includes every manifest entry automatically. Extend
+the probe's explicit marker/session allowlists only where needed. Record the exact
+CLI mode and its source/docs, run discovery before changing the library, investigate
+non-agent controls, then add a narrow predicate and false-positive/precedence tests. Include positive
 and adversarial verifier fixtures, then run the real container test.
 
 The current gateway covers four protocols. Other protocols may need
@@ -239,3 +288,17 @@ Additional adapter references:
 [Gemini endpoint configuration](https://geminicli.com/docs/reference/configuration/),
 [Goose shell source at v1.51.0](https://github.com/aaif-goose/goose/blob/v1.51.0/crates/goose/src/agents/platform_extensions/developer/shell.rs),
 [Cline CLI](https://github.com/cline/cline/blob/main/apps/cli/README.md).
+
+New adapter references: [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness),
+[Kilo CLI](https://github.com/Kilo-Org/kilocode),
+[OpenClaw standalone agent](https://github.com/openclaw/openclaw/blob/v2026.9.5/docs/cli/agent.md),
+[Hermes pinned source](https://github.com/NousResearch/hermes-agent/tree/d337b736aa1e8ebecfab043842d13e4a2d2f48a3),
+[VTCode orchestration modes](https://github.com/vinhnx/VTCode/blob/0.169.1/crates/codegen/vtcode-config/src/core/agent.rs),
+[Junie custom model profiles](https://junie.jetbrains.com/docs/custom-llm-models.html).
+
+This suite now exercises sixteen CLIs. Library entries outside this manifest
+remain **unverified by real invocation here**: Cursor surfaces, Augment, Trae,
+Amp, Devin, Replit, Antigravity, iFlow, Amazon Q, Roo Code, Cowork, CodeBuddy,
+Grok CLI, Warp, Kiro, Firebender, OpenHands, veCLI and v0. This is a coverage
+inventory, not a claim that those products cannot be automated. Each needs a
+suitable isolated launch mode and configurable provider before joining this lab.

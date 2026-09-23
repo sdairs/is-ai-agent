@@ -1,0 +1,331 @@
+{
+  "schema": 2,
+  "mode": "mock",
+  "harness": "openclaw",
+  "harness_version": "2026.9.5",
+  "timestamp": "2026-09-23T16:01:27.134164+00:00",
+  "run_id": "4d6ce83ea219430fb0b5976f83b8c5f4",
+  "scope": "Linux noninteractive CLI shell tool; no PTY, SDK, MCP, resume, or human-command coverage",
+  "image_id": "sha256:e719c84bf9c89abf847044ea085d06d4e069ecee13ffae60d55d22f8ddfee200",
+  "build_sha256": "835a4c047367f5679acfe8cf0aa43378cf0957d55fed58e373fa1771a237e74d",
+  "gateway_image": "python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea",
+  "gateway_source_sha256": "4793c554440fe57351ac198d05a0decb9b0cfa5c53fa4c89c4e523879b08bd53",
+  "platform": "linux/arm64",
+  "library_source_sha256": "367a3762af0dbdf32b2e1335289929d1e115eb776d0e8d85245de453c6e4938f",
+  "stage": "complete",
+  "control": {
+    "schema": 3,
+    "nonce": "bea3c1dcf02249e3b82042da77366ce3",
+    "library_version": "0.5.0",
+    "agent": null,
+    "signal": null,
+    "session_present": false,
+    "markers": {
+      "PI_CODING_AGENT": false,
+      "PI_SESSION_ID": false,
+      "QWEN_CODE": false,
+      "GEMINI_CLI": false,
+      "QWEN_CODE_SESSION_ID": false,
+      "OPENCODE": false,
+      "OPENCODE_PID": false,
+      "COPILOT_CLI": false,
+      "COPILOT_AGENT": false,
+      "COPILOT_AGENT_SESSION_ID": false,
+      "CRUSH": false,
+      "GOOSE_TERMINAL": false,
+      "CLINE_ACTIVE": false,
+      "CLINE_TASK_ID": false,
+      "CODEX_THREAD_ID": false,
+      "CODEX_SESSION_ID": false,
+      "CODEX_SANDBOX": false,
+      "CLAUDECODE": false,
+      "CLAUDE_CODE_CHILD_SESSION": false,
+      "CLAUDE_CODE_SESSION_ID": false,
+      "DSH_SHELL": false,
+      "DSH_SESSION_ID": false,
+      "KILO": false,
+      "OPENCLAW_SHELL": false,
+      "HERMES_AGENT": false,
+      "HERMES_SESSION_ID": false,
+      "VTCODE": false,
+      "JUNIE_SHIM_PATH": false,
+      "MATTERHORN_SESSION_ID": false
+    },
+    "exact_markers": {
+      "DSH_SHELL": false,
+      "KILO": false,
+      "OPENCLAW_SHELL": false,
+      "HERMES_AGENT": false,
+      "VTCODE": false
+    },
+    "session_matches": {
+      "PI_SESSION_ID": false,
+      "QWEN_CODE_SESSION_ID": false,
+      "COPILOT_AGENT_SESSION_ID": false,
+      "CLINE_TASK_ID": false,
+      "CODEX_THREAD_ID": false,
+      "CLAUDE_CODE_SESSION_ID": false,
+      "DSH_SESSION_ID": false,
+      "HERMES_SESSION_ID": false
+    }
+  },
+  "container_exit_code": 0,
+  "probe": {
+    "schema": 3,
+    "nonce": "bea3c1dcf02249e3b82042da77366ce3",
+    "library_version": "0.5.0",
+    "agent": "openclaw",
+    "signal": "OPENCLAW_SHELL",
+    "session_present": false,
+    "markers": {
+      "PI_CODING_AGENT": false,
+      "PI_SESSION_ID": false,
+      "QWEN_CODE": false,
+      "GEMINI_CLI": false,
+      "QWEN_CODE_SESSION_ID": false,
+      "OPENCODE": false,
+      "OPENCODE_PID": false,
+      "COPILOT_CLI": false,
+      "COPILOT_AGENT": false,
+      "COPILOT_AGENT_SESSION_ID": false,
+      "CRUSH": false,
+      "GOOSE_TERMINAL": false,
+      "CLINE_ACTIVE": false,
+      "CLINE_TASK_ID": false,
+      "CODEX_THREAD_ID": false,
+      "CODEX_SESSION_ID": false,
+      "CODEX_SANDBOX": false,
+      "CLAUDECODE": false,
+      "CLAUDE_CODE_CHILD_SESSION": false,
+      "CLAUDE_CODE_SESSION_ID": false,
+      "DSH_SHELL": false,
+      "DSH_SESSION_ID": false,
+      "KILO": false,
+      "OPENCLAW_SHELL": true,
+      "HERMES_AGENT": false,
+      "HERMES_SESSION_ID": false,
+      "VTCODE": false,
+      "JUNIE_SHIM_PATH": false,
+      "MATTERHORN_SESSION_ID": false
+    },
+    "exact_markers": {
+      "DSH_SHELL": false,
+      "KILO": false,
+      "OPENCLAW_SHELL": true,
+      "HERMES_AGENT": false,
+      "VTCODE": false
+    },
+    "session_matches": {
+      "PI_SESSION_ID": false,
+      "QWEN_CODE_SESSION_ID": false,
+      "COPILOT_AGENT_SESSION_ID": false,
+      "CLINE_TASK_ID": false,
+      "CODEX_THREAD_ID": false,
+      "CLAUDE_CODE_SESSION_ID": false,
+      "DSH_SESSION_ID": false,
+      "HERMES_SESSION_ID": false
+    }
+  },
+  "execution": {
+    "exact_probe_command": true,
+    "tool_completed": true,
+    "tool_output_matches_artifact": true,
+    "agent_settled": true,
+    "discovery_matches_tool_output": true
+  },
+  "configured_control": {
+    "schema": 3,
+    "nonce": "bea3c1dcf02249e3b82042da77366ce3",
+    "library_version": "0.5.0",
+    "agent": null,
+    "signal": null,
+    "session_present": false,
+    "markers": {
+      "PI_CODING_AGENT": false,
+      "PI_SESSION_ID": false,
+      "QWEN_CODE": false,
+      "GEMINI_CLI": false,
+      "QWEN_CODE_SESSION_ID": false,
+      "OPENCODE": false,
+      "OPENCODE_PID": false,
+      "COPILOT_CLI": false,
+      "COPILOT_AGENT": false,
+      "COPILOT_AGENT_SESSION_ID": false,
+      "CRUSH": false,
+      "GOOSE_TERMINAL": false,
+      "CLINE_ACTIVE": false,
+      "CLINE_TASK_ID": false,
+      "CODEX_THREAD_ID": false,
+      "CODEX_SESSION_ID": false,
+      "CODEX_SANDBOX": false,
+      "CLAUDECODE": false,
+      "CLAUDE_CODE_CHILD_SESSION": false,
+      "CLAUDE_CODE_SESSION_ID": false,
+      "DSH_SHELL": false,
+      "DSH_SESSION_ID": false,
+      "KILO": false,
+      "OPENCLAW_SHELL": false,
+      "HERMES_AGENT": false,
+      "HERMES_SESSION_ID": false,
+      "VTCODE": false,
+      "JUNIE_SHIM_PATH": false,
+      "MATTERHORN_SESSION_ID": false
+    },
+    "exact_markers": {
+      "DSH_SHELL": false,
+      "KILO": false,
+      "OPENCLAW_SHELL": false,
+      "HERMES_AGENT": false,
+      "VTCODE": false
+    },
+    "session_matches": {
+      "PI_SESSION_ID": false,
+      "QWEN_CODE_SESSION_ID": false,
+      "COPILOT_AGENT_SESSION_ID": false,
+      "CLINE_TASK_ID": false,
+      "CODEX_THREAD_ID": false,
+      "CLAUDE_CODE_SESSION_ID": false,
+      "DSH_SESSION_ID": false,
+      "HERMES_SESSION_ID": false
+    }
+  },
+  "discovery": {
+    "configured": {
+      "schema": 1,
+      "nonce": "bea3c1dcf02249e3b82042da77366ce3",
+      "environment": {
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        }
+      },
+      "ancestry": [
+        "agent-probe",
+        "node"
+      ]
+    },
+    "agent": {
+      "schema": 1,
+      "nonce": "bea3c1dcf02249e3b82042da77366ce3",
+      "environment": {
+        "HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "HOSTNAME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "NODE_NO_WARNINGS": {
+          "change": "added",
+          "nonblank": true
+        },
+        "NODE_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "OPENCLAW_CLI": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENCLAW_NODE_OPTIONS_READY": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENCLAW_PATH_BOOTSTRAPPED": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENCLAW_SHELL": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENCLAW_STATE_DIR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "OPENCLAW_WORKSPACE_DIR": {
+          "change": "added",
+          "nonblank": true
+        },
+        "PATH": {
+          "change": "changed",
+          "nonblank": true
+        },
+        "PWD": {
+          "change": "added",
+          "nonblank": true
+        },
+        "XDG_CACHE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_CONFIG_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_DATA_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "XDG_STATE_HOME": {
+          "change": "unchanged",
+          "nonblank": true
+        },
+        "YARN_VERSION": {
+          "change": "unchanged",
+          "nonblank": true
+        }
+      },
+      "ancestry": [
+        "agent-probe",
+        "dash",
+        "node",
+        "node",
+        "node",
+        "node"
+      ]
+    }
+  },
+  "checks": {
+    "plain_shell_not_detected": true,
+    "real_shell_tool_executed": true,
+    "harness_identified": true,
+    "harness_exported_markers": true,
+    "session_contract": true,
+    "configured_environment_not_detected": true
+  },
+  "status": "pass"
+}

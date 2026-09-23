@@ -10,6 +10,42 @@ from unittest.mock import patch
 
 import gateway
 import run
+import compare
+
+
+class VersionWorkflowTests(unittest.TestCase):
+    def test_trial_version_changes_build_input_without_editing_manifest(self):
+        original = (run.HERE / "harnesses.json").read_bytes()
+        with patch.dict(run.HARNESS, run.HARNESS.copy()):
+            before = run.build_fingerprint()
+            run.override_version("qwen-code", "0.24.3")
+            self.assertNotEqual(before, run.build_fingerprint())
+            self.assertEqual(json.loads(run.build_input("tests/harnesses/harnesses.json"))["qwen-code"]["version"], "0.24.3")
+            self.assertEqual(original, (run.HERE / "harnesses.json").read_bytes())
+            for version in ["latest", "^0.24.3", "0.24.3;echo bad"]:
+                with self.assertRaises(ValueError):
+                    run.override_version("qwen-code", version)
+            with self.assertRaises(ValueError):
+                run.override_version("goose", "1.52.0")
+
+    def test_comparison_requires_execution_and_reports_only_redacted_drift(self):
+        record = {"harness": "qwen-code", "platform": "linux/amd64", "stage": "complete",
+                  "checks": {"real_shell_tool_executed": True},
+                  "probe": {"agent": "qwen-code", "signal": "QWEN_CODE", "nonce": "fresh",
+                            "markers": {"QWEN_CODE": True}},
+                  "discovery": {"agent": {"schema": 1, "nonce": "fresh", "ancestry": ["node"],
+                                           "environment": {"QWEN_CODE": {"change": "added", "nonblank": True}}}}}
+        changed = json.loads(json.dumps(record))
+        self.assertEqual(compare.compare(record, changed), {})
+        changed["probe"]["markers"]["QWEN_CODE"] = False
+        self.assertEqual(compare.compare(record, changed), {"markers.QWEN_CODE": {"before": True, "after": False}})
+        changed["checks"]["real_shell_tool_executed"] = False
+        with self.assertRaises(ValueError):
+            compare.compare(record, changed)
+        changed = json.loads(json.dumps(record))
+        changed["discovery"]["agent"]["environment"]["QWEN_CODE"]["value"] = "sentinel-secret"
+        with self.assertRaises(ValueError):
+            compare.compare(record, changed)
 
 
 class EvidenceTests(unittest.TestCase):
@@ -35,9 +71,10 @@ class EvidenceTests(unittest.TestCase):
             self.assertFalse(all(run.verify_events(raw, "probe", {"agent": "pi"}).values()))
 
     def test_stale_nonce_and_extra_fields_rejected(self):
-        probe = {"schema": 2, "nonce": "new", "library_version": run.library_version(), "agent": "pi",
+        probe = {"schema": 3, "nonce": "new", "library_version": run.library_version(), "agent": "pi",
                  "signal": "AI_AGENT", "session_present": True,
                  "markers": {name: False for name in run.MARKERS},
+                 "exact_markers": {name: False for name in run.EXACT_MARKERS},
                  "session_matches": {name: False for name in run.SESSIONS}}
         self.assertEqual(run.validate_probe(probe, "new"), probe)
         with self.assertRaises(ValueError):
@@ -178,11 +215,20 @@ class GatewayTests(unittest.TestCase):
         handler.do_POST()
         self.assertEqual(json.loads(handler.wfile.getvalue())["choices"][0]["finish_reason"], "stop")
 
+    def test_junie_finishes_with_advertised_submit_without_another_shell_call(self):
+        handler = self.handler({"messages": [{"role": "tool", "tool_call_id": "callprobe", "content": "probe output"}],
+            "tools": [{"function": {"name": "submit", "parameters": {"properties": {"solution_summary": {"type": "string"}}}}}]})
+        handler.do_POST()
+        response = json.loads(handler.wfile.getvalue())["choices"][0]
+        self.assertEqual(response["message"]["tool_calls"][0]["function"]["name"], "submit")
+        self.assertEqual(gateway.Handler.evidence["calls"], [])
+        self.assertEqual(gateway.Handler.evidence["final_responses"], 1)
+
 
 class ProviderEvidenceTests(unittest.TestCase):
     def test_only_correlated_successful_shell_output_passes(self):
-        evidence = {"calls": [{"id": "call_probe", "name": "bash", "command": "probe"}],
-                    "results": [{"id": "call_probe", "content": '{"agent":"crush"}', "is_error": False}],
+        evidence = {"calls": [{"id": "callprobe", "name": "bash", "command": "probe"}],
+                    "results": [{"id": "callprobe", "content": '{"agent":"crush"}', "is_error": False}],
                     "final_responses": 1}
         def verify(value):
             return all(run.verify_provider(value, "probe", {"agent": "crush"}, "bash").values())
@@ -218,6 +264,17 @@ class ProviderEvidenceTests(unittest.TestCase):
             self.assertEqual(run.classify_result({**report, "checks": {**checks, name: False}}, spec, True), "fail")
         self.assertEqual(run.classify_result(report, {**spec, "known_gap": None}, True), "fail")
 
+    def test_pending_candidate_gap_requires_observed_candidates(self):
+        spec = {"known_gap": "Candidates need controls", "known_gap_present_markers": True,
+                "markers": ["JUNIE_SHIM_PATH"]}
+        report = {"checks": {"plain_shell_not_detected": True, "real_shell_tool_executed": True,
+                             "harness_exported_markers": True},
+                  "probe": {"agent": None, "signal": None, "session_present": False,
+                            "markers": {"JUNIE_SHIM_PATH": True}}}
+        self.assertEqual(run.classify_result(report, spec, True), "known-gap")
+        report["checks"]["harness_exported_markers"] = False
+        self.assertEqual(run.classify_result(report, spec, True), "fail")
+
 
 class GatewayHTTPTests(unittest.TestCase):
     """Exercise actual HTTP/stream serialization, not just handler methods."""
@@ -248,23 +305,23 @@ class GatewayHTTPTests(unittest.TestCase):
         fixtures = [
             ("/v1/chat/completions", {"stream": True, "messages": [{"role": "user", "content": command}],
                 "tools": [{"type": "function", "function": tool}]},
-                {"messages": [{"role": "tool", "tool_call_id": "call_probe", "content": output}]}),
+                {"messages": [{"role": "tool", "tool_call_id": "callprobe", "content": output}]}),
             ("/v1/responses", {"stream": True, "input": [{"role": "user", "content": command}],
                 "tools": [{"type": "function", **tool}]},
-                {"input": [{"type": "function_call_output", "call_id": "call_probe", "output": output}]}),
+                {"input": [{"type": "function_call_output", "call_id": "callprobe", "output": output}]}),
             ("/v1/messages?beta=true", {"stream": True, "messages": [{"role": "user", "content": command}],
                 "tools": [{"name": "bash", "input_schema": parameters}]},
-                {"messages": [{"role": "user", "content": [{"type": "tool_result", "tool_use_id": "call_probe", "content": output}]}]}),
+                {"messages": [{"role": "user", "content": [{"type": "tool_result", "tool_use_id": "callprobe", "content": output}]}]}),
             ("/v1beta/models/test:streamGenerateContent?alt=sse", {"contents": [{"role": "user", "parts": [{"text": command}]}],
                 "tools": [{"functionDeclarations": [tool]}]},
-                {"contents": [{"role": "user", "parts": [{"functionResponse": {"name": "bash", "id": "call_probe", "response": {"output": output}}}]}]}),
+                {"contents": [{"role": "user", "parts": [{"functionResponse": {"name": "bash", "id": "callprobe", "response": {"output": output}}}]}]}),
         ]
         for path, initial, followup in fixtures:
             with self.subTest(protocol=path):
                 gateway.Handler.count = 0
                 gateway.Handler.evidence = {"calls": [], "results": [], "final_responses": 0}
                 response = self.post(path, initial)
-                self.assertIn("call_probe", response)
+                self.assertIn("callprobe", response)
                 self.assertIn(command, response)
                 self.post(path, {**initial, **followup})
                 with urllib.request.urlopen(self.base + "/evidence", timeout=2) as response:

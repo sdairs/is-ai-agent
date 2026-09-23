@@ -53,6 +53,8 @@ The value is opaque and only comparable *within the same agent* — pair it with
 | Warp | `OZ_RUN_ID` | Run id; scope undocumented, so correlation may fragment. |
 | Cline | `CLINE_TASK_ID` | |
 | Roo Code | `ROO_CODE_TASK_ID` | |
+| DeepSeek Harness | `DSH_SESSION_ID` | Read only after identifying the agent shell; the session variable alone is not identity. |
+| Hermes Agent | `HERMES_SESSION_ID` | Read after identifying Hermes; verified in the local terminal backend. |
 | Pi | `PI_SESSION_ID` | Injected by shell tools; human `!` / `!!` commands do not receive this session metadata. |
 
 Gemini CLI, Crush, and Grok CLI expose a session id only to *hooks*, not to ordinary subprocesses, so no id is available there.
@@ -104,6 +106,11 @@ let agent = detect_with(
    | `AGENT_CONTEXT_OUT` *and* `AGENT_DISPLAY_OUT` (the Kiro CLI exports this FIFO pair only while its agent drives the command; either alone is too generic) | Kiro |
    | `FIREBENDER_TERMINAL` | Firebender |
    | `PS1` or `PROMPT_COMMAND` containing `###PS1JSON###` | OpenHands |
+   | `DSH_SHELL=1` (exact) | DeepSeek Harness |
+   | `KILO=1` (exact, before OpenCode) | Kilo Code |
+   | `OPENCLAW_SHELL=exec` (exact) | OpenClaw |
+   | `HERMES_AGENT=true` (exact), or generic `AI_AGENT=hermes-agent` | Hermes Agent |
+   | `VTCODE=1` (exact) | VTCode |
    | `OPENCODE`, `OPENCODE_PID`, `OPENCODE_BIN_PATH`, `OPENCODE_SERVER`, `OPENCODE_APP_INFO`, `OPENCODE_MODES`, `OPENCODE_CLIENT` | OpenCode |
    | `TRAE_AI_SHELL_ID` | TRAE AI |
    | `GOOSE_TERMINAL` | Goose |
@@ -126,18 +133,23 @@ The detected `Agent` carries the `Signal` that matched, so callers can see exact
 
 ## Real harness tests
 
-A [container test lab](tests/harnesses/README.md) runs ten unmodified CLIs against
-a Rust probe: Pi, Qwen Code, OpenCode, Copilot CLI, Crush, Codex, Claude Code,
-Gemini CLI, Goose and Cline CLI. Eight have detection assertions; Goose and Cline
-are explicitly labelled known detection gaps despite successful command execution. GitHub Actions runs these tests on
-pull requests, on pushes to `main`, and before publishing a release. A scripted
-local provider requests a real shell-tool invocation; no LLM credentials or
-vendor accounts are needed. Sanitized reports record identity, session handling
-and execution evidence. The same tests run locally with Docker or OrbStack.
-The [discovery mode](tests/harnesses/discovery.md) compares real tool environments
-with controls to find candidate signals without exporting their values. It found
-that Cline's new launcher variables also reach non-agent commands, so they are
-deliberately excluded from default detection.
+A [container test lab](tests/harnesses/README.md) runs sixteen unmodified CLIs
+against a Rust probe. Thirteen have detection assertions, including DeepSeek
+Harness, Qwen Code, Kilo Code, OpenClaw, Hermes and VTCode. Goose and Cline remain
+known detection gaps; Junie runs successfully but its candidate markers need
+further controls before adding a rule. These are explicit discovery results,
+not detection passes.
+
+GitHub Actions runs the manifest on PRs, pushes to `main`, and before publishing
+a release. A scripted local provider requests real shell-tool invocations;
+no LLM credentials or vendor accounts are needed. The same tests run locally
+with Docker or OrbStack. Reports retain versions, platform, source fingerprints,
+identity and session checks, and correlated execution evidence.
+
+The [discovery workflow](tests/harnesses/discovery.md) compares real tool
+environments with controls without exporting their values. Trial version pins
+and report comparisons make new releases and changed signals reviewable before
+updating the detector. See the test lab README for commands and coverage limits.
 
 ## License
 

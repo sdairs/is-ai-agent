@@ -11,7 +11,7 @@ python3 tests/harnesses/run.py --harness pi --discover
 ```
 
 `--discover` works with every adapter and only in mock mode. CI runs it for all
-ten CLIs on PRs, manual runs and releases. It adds `discovery.json` and a configured
+sixteen CLIs on PRs, manual runs and releases. It adds `discovery.json` and a configured
 control to the normal evidence directory; Cline also has a non-agent control.
 Discovery does not change `detect()` or make a detection gap pass.
 
@@ -104,3 +104,37 @@ The current suite does not cover all human-command, PTY, IDE, nested, or resumed
 session paths. The evidence is intentionally scoped to the recorded versions,
 platforms and commands. See the committed sanitized discovery reports in
 [evidence](evidence/) and the per-run GitHub Actions artifacts.
+
+## Expanded probes (2026-09-23)
+
+| CLI | Observed predicate | Library decision |
+| --- | --- | --- |
+| DeepSeek Harness 0.1.5-rc.3 | `DSH_SHELL == "1"`; `DSH_SESSION_ID` present | Add exact identity rule and nonblank session extraction; session alone does not identify the human web terminal |
+| Kilo 7.7.9 | `KILO == "1"` alongside `OPENCODE` | Identify Kilo before the inherited OpenCode fallback |
+| OpenClaw 2026.9.5 | `OPENCLAW_SHELL == "exec"` | Add exact rule; reject `tui-local`, `acp-client`, `acp` and other values |
+| Hermes 0.21.4 | `AI_AGENT` identifies Hermes; `HERMES_AGENT == "true"`; session present | Add generic aliases, exact marker and nonblank session extraction |
+| VTCode 0.169.1 | `VTCODE == "1"` | Add exact rule; tested `exec` with supported single orchestration mode |
+| Junie 26.9.7 (3110.7) | `JUNIE_SHIM_PATH`, `MATTERHORN_SESSION_ID` present | Retain as candidates, no default identity/session rule yet |
+
+The probe checks literal predicates inside the container and exports only booleans.
+No arbitrary value or session identifier is retained. Positive results require
+clean/configured negative controls and the same fresh output in both the artifact
+and actual tool result. Rust fixtures cover wrong values and precedence; they are
+not presented as real tests of other human/IDE/ACP modes.
+
+Junie's headless custom-provider path is verified. The official shim exports its
+path before command dispatch, so presence alone has weaker semantics than a marker
+injected only by an agent tool. The interactive `!` control attempt did not produce
+a usable probe; the distinction remains unresolved. `MATTERHORN_SESSION_ID` is a
+new research lead from our own invocation, not yet a session API promise.
+
+Goose was also tested at **1.52.0**, now the manifest pin, with the same missing
+markers. The developer-shell rewrite in
+[PR #7466](https://github.com/aaif-goose/goose/pull/7466) removed the old injection;
+1.26.0 had the markers and 1.27.0 included the replacement shell. The upstream
+request to restore them is [Goose #12470](https://github.com/aaif-goose/goose/issues/12470).
+
+Use `compare.py` on two successful-execution discovery reports for the same CLI
+and platform to review drift. A new CLI requires a manifest entry and normal
+launcher configuration; a new version of an existing npm adapter can first be
+tried with `run.py --version`. CI derives its jobs from the manifest.

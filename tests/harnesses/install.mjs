@@ -1,9 +1,31 @@
 // Public, version-pinned packages only. This runs during the isolated build.
-import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
+import { readFileSync, writeFileSync, unlinkSync, mkdirSync, cpSync, chmodSync, symlinkSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 const [pkg, version] = process.argv.slice(2);
-if (pkg === "goose") {
+const manifest = JSON.parse(readFileSync("/opt/harnesses.json"));
+if (pkg === "vtcode" || pkg === "hermes-agent") {
+  const spec = manifest[pkg];
+  const asset = pkg === "vtcode" ? spec.assets[process.arch] : spec.source;
+  if (!asset || version !== spec.version) throw new Error("Unsupported release build");
+  const response = await fetch(asset.url);
+  if (!response.ok) throw new Error("Release download failed");
+  const data = Buffer.from(await response.arrayBuffer());
+  if (createHash("sha256").update(data).digest("hex") !== asset.sha256) throw new Error("Release checksum mismatch");
+  writeFileSync("/tmp/release.tar.gz", data);
+  mkdirSync(`/opt/${pkg}`, { recursive: true });
+  execFileSync("tar", ["xzf", "/tmp/release.tar.gz", "--strip-components=1", "-C", `/opt/${pkg}`]);
+  unlinkSync("/tmp/release.tar.gz");
+  if (pkg === "vtcode") {
+    symlinkSync("/opt/vtcode/vtcode", "/usr/local/bin/vtcode");
+  } else {
+    execFileSync("apt-get", ["update"], { stdio: "inherit" });
+    execFileSync("apt-get", ["install", "-y", "--no-install-recommends", "python3", "python3-venv", "git"], { stdio: "inherit" });
+    execFileSync("python3", ["-m", "venv", "/opt/hermes-venv"]);
+    execFileSync("/opt/hermes-venv/bin/pip", ["install", "--no-cache-dir", "-e", "/opt/hermes-agent"], { stdio: "inherit" });
+    symlinkSync("/opt/hermes-venv/bin/hermes", "/usr/local/bin/hermes");
+  }
+} else if (pkg === "goose") {
   const spec = JSON.parse(readFileSync("/opt/harnesses.json")).goose;
   const asset = spec.assets[process.arch];
   if (!asset || version !== spec.version) throw new Error("Unsupported Goose build");
@@ -18,4 +40,12 @@ if (pkg === "goose") {
 } else {
   execFileSync("npm", ["install", "--global", `${pkg}@${version}`], { stdio: "inherit" });
   execFileSync("npm", ["cache", "clean", "--force"], { stdio: "inherit" });
+  if (pkg === "@jetbrains/junie") {
+    execFileSync("usermod", ["--home", "/tmp", "node"]);
+    cpSync("/root/.local/share/junie", "/opt/junie", { recursive: true });
+    cpSync("/root/.local/bin/junie", "/opt/junie-shim");
+    chmodSync("/opt/junie-shim", 0o755);
+    unlinkSync("/usr/local/bin/junie");
+    writeFileSync("/usr/local/bin/junie", '#!/bin/sh\nexport JUNIE_DATA=/opt/junie\nexec /opt/junie-shim "$@"\n', { mode: 0o755 });
+  }
 }

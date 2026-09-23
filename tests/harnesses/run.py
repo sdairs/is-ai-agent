@@ -4,7 +4,6 @@ import argparse
 import hashlib
 import json
 import re
-import shutil
 import subprocess
 import tempfile
 import time
@@ -23,11 +22,13 @@ MARKERS = {"PI_CODING_AGENT", "PI_SESSION_ID", "QWEN_CODE", "GEMINI_CLI",
            "QWEN_CODE_SESSION_ID", "OPENCODE", "OPENCODE_PID",
            "COPILOT_CLI", "COPILOT_AGENT", "COPILOT_AGENT_SESSION_ID", "CRUSH", "GOOSE_TERMINAL",
            "CLINE_ACTIVE", "CLINE_TASK_ID", "CODEX_THREAD_ID", "CODEX_SESSION_ID", "CODEX_SANDBOX",
-           "CLAUDECODE", "CLAUDE_CODE_CHILD_SESSION", "CLAUDE_CODE_SESSION_ID"}
-SESSIONS = {"PI_SESSION_ID", "QWEN_CODE_SESSION_ID", "COPILOT_AGENT_SESSION_ID", "CLINE_TASK_ID", "CODEX_THREAD_ID", "CLAUDE_CODE_SESSION_ID"}
+           "CLAUDECODE", "CLAUDE_CODE_CHILD_SESSION", "CLAUDE_CODE_SESSION_ID", "DSH_SHELL", "DSH_SESSION_ID", "KILO", "OPENCLAW_SHELL", "HERMES_AGENT", "HERMES_SESSION_ID", "VTCODE", "JUNIE_SHIM_PATH", "MATTERHORN_SESSION_ID"}
+SESSIONS = {"PI_SESSION_ID", "QWEN_CODE_SESSION_ID", "COPILOT_AGENT_SESSION_ID", "CLINE_TASK_ID", "CODEX_THREAD_ID", "CLAUDE_CODE_SESSION_ID", "DSH_SESSION_ID", "HERMES_SESSION_ID"}
 EXECUTABLES = {"agent-probe", "node", "bash", "sh", "dash", "zsh", "goose", "cline", "pi", "qwen",
                "opencode", "copilot", "crush", "codex", "claude", "gemini", "other", "unavailable"}
 
+
+EXACT_MARKERS = {"DSH_SHELL", "KILO", "OPENCLAW_SHELL", "HERMES_AGENT", "VTCODE"}
 
 def validate_discovery(value, nonce):
     if (not isinstance(value, dict) or set(value) != {"schema", "nonce", "environment", "ancestry"}
@@ -56,8 +57,23 @@ def read_artifact(path, nonce, validator=validate_discovery):
 def build_fingerprint():
     digest = hashlib.sha256()
     for relative in BUILD_FILES:
-        digest.update(relative.encode() + b"\0" + (ROOT / relative).read_bytes() + b"\0")
+        digest.update(relative.encode() + b"\0" + build_input(relative) + b"\0")
     return digest.hexdigest()
+
+
+def build_input(relative):
+    if relative == "tests/harnesses/harnesses.json":
+        return (json.dumps(HARNESS, sort_keys=True, indent=2) + "\n").encode()
+    return (ROOT / relative).read_bytes()
+
+
+def override_version(harness, version):
+    spec = HARNESS[harness]
+    if not re.fullmatch(r"\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?", version):
+        raise ValueError("Use an exact published version, not a tag or range")
+    if any(key in spec for key in ("assets", "source", "reported_version")):
+        raise ValueError("This adapter needs matching release metadata; update its manifest entry instead")
+    HARNESS[harness] = {**spec, "version": version}
 
 
 def docker(*args, check=True, timeout=180):
@@ -76,7 +92,7 @@ def build(harness, image):
         for relative in BUILD_FILES:
             destination = context / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(ROOT / relative, destination)
+            destination.write_bytes(build_input(relative))
         spec = HARNESS[harness]
         print(f"Building isolated {harness} {spec['version']} image...", flush=True)
         # Build contains no credentials; normal progress is useful for long pulls.
@@ -88,14 +104,14 @@ def build(harness, image):
 
 
 def validate_probe(value, nonce):
-    keys = {"schema", "nonce", "library_version", "agent", "signal", "session_present", "markers", "session_matches"}
-    if not isinstance(value, dict) or set(value) != keys or value["schema"] != 2 or value["nonce"] != nonce:
+    keys = {"schema", "nonce", "library_version", "agent", "signal", "session_present", "markers", "exact_markers", "session_matches"}
+    if not isinstance(value, dict) or set(value) != keys or value["schema"] != 3 or value["nonce"] != nonce:
         raise ValueError("Invalid or stale probe artifact")
-    if value["agent"] not in [None, *HARNESS] or value["signal"] not in [None, "AGENT", "AI_AGENT", *MARKERS]:
+    if value["agent"] not in [None, "unknown", *HARNESS] or value["signal"] not in [None, "AGENT", "AI_AGENT", *MARKERS]:
         raise ValueError("Unexpected detector attribution")
     if type(value["session_present"]) is not bool:
         raise ValueError("Invalid session presence")
-    for field, names in [("markers", MARKERS), ("session_matches", SESSIONS)]:
+    for field, names in [("markers", MARKERS), ("exact_markers", EXACT_MARKERS), ("session_matches", SESSIONS)]:
         if not isinstance(value[field], dict) or set(value[field]) != names or any(type(v) is not bool for v in value[field].values()):
             raise ValueError("Invalid probe fields")
     if value["library_version"] != library_version():
@@ -180,12 +196,14 @@ def classify_result(report, spec, expect_undetected=False):
     if expect_undetected:
         # A pinned known gap is an explicit observation, never a detection pass.
         # Do not accept tool failures, unexpected attribution, or new markers.
+        markers_match = (checks.get("harness_exported_markers", False) if spec.get("known_gap_present_markers")
+                         else not any(probe["markers"][name] for name in spec["markers"]))
         expected = (spec.get("known_gap") and checks["plain_shell_not_detected"]
                     and checks.get("configured_environment_not_detected", True)
                     and checks.get("non_agent_command_not_detected", True)
                     and checks["real_shell_tool_executed"] and probe["agent"] is None
                     and probe["signal"] is None and not probe["session_present"]
-                    and not any(probe["markers"][name] for name in spec["markers"]))
+                    and markers_match)
         return "known-gap" if expected else "fail"
     return "pass" if all(checks.values()) else "fail"
 
@@ -275,7 +293,7 @@ def run(args):
             report["stage"] = "version"
             actual_version = docker("run", "--rm", *common, "--network=none", "-e", "HOME=/tmp", "--entrypoint", spec["executable"], image,
                                     "--version").stdout.strip()
-            if not re.search(r"(?<![\d.])" + re.escape(report["harness_version"]) + r"(?!\d|\.\d)", actual_version):
+            if not re.search(r"(?<![\d.])" + re.escape(spec.get("reported_version", spec["version"])) + r"(?!\d|\.\d)", actual_version):
                 raise ValueError("Installed version differs from test target")
             report["stage"] = "control"
             control = docker("run", "--rm", *common, "--network=none",
@@ -326,7 +344,7 @@ def run(args):
             "plain_shell_not_detected": control_record["agent"] is None,
             "real_shell_tool_executed": all(report["execution"].values()) and report["container_exit_code"] == 0,
             "harness_identified": p["agent"] == args.harness,
-            "harness_exported_markers": all(p["markers"][name] for name in spec["markers"]),
+            "harness_exported_markers": all(p["markers"][name] and (name not in EXACT_MARKERS or p["exact_markers"][name]) for name in spec["markers"]),
             "session_contract": p["session_matches"][spec["session_var"]] if spec["session_var"] else not p["session_present"],
         }
         if args.discover:
@@ -364,4 +382,8 @@ if __name__ == "__main__":
     parser.add_argument("--expect-undetected", action="store_true", help="Assert a documented missing-detection result; execution must still succeed")
     parser.add_argument("--skip-build", action="store_true", help="Use an already-built image for unchanged source")
     parser.add_argument("--discover", action="store_true", help="Compare configured and tool environments without exporting values (mock only)")
-    raise SystemExit(run(parser.parse_args()))
+    parser.add_argument("--version", help="Trial an exact npm release without changing the checked-in manifest")
+    args = parser.parse_args()
+    if args.version:
+        override_version(args.harness, args.version)
+    raise SystemExit(run(args))

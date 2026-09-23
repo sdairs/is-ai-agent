@@ -64,6 +64,93 @@ if (harness === "pi") {
   Object.assign(env, { CRUSH_DISABLE_PROVIDER_AUTO_UPDATE: "1", CRUSH_DISABLE_METRICS: "1", DO_NOT_TRACK: "1" });
   command = "crush";
   args = ["run", "--quiet", prompt];
+} else if (harness === "deepseek-harness") {
+  Object.assign(env, { DSH_HOME: "/tmp/dsh", DSH_PERMISSION_MODE: "danger-full-access",
+    DSH_TELEMETRY_MODE: "DISABLED", DSH_TOOLS_MODE: "native", OPENAI_API_KEY: "not-a-secret" });
+  write("/tmp/dsh.patch.json", [
+    { id: "llm-deepseek", disabled: true },
+    { id: "session-log-deepseek", disabled: true },
+    { id: "session-telemetry-otel", disabled: true },
+    { id: "llm-pi-ai", config: { providers: { "harness-test": {
+      apiKeyEnv: "OPENAI_API_KEY", api: "openai-completions", baseURL: "http://gateway:8080/v1",
+      models: [{ id: "probe-model", contextWindow: 32768, maxTokens: 2048 }],
+    } } } },
+    { id: "agent-default-model", config: { provider: "harness-test", model: "probe-model" } },
+  ]);
+  command = "dsh";
+  args = ["--profile", "headless", "--patch", "/tmp/dsh.patch.json", prompt];
+} else if (harness === "kilo-code") {
+  mkdirSync("/tmp/config/kilo", { recursive: true });
+  write("/tmp/config/kilo/kilo.json", {
+    provider: { "harness-test": { npm: "@ai-sdk/openai-compatible", name: "Local test provider",
+      options: { baseURL: "http://gateway:8080/v1", apiKey: "not-a-secret" },
+      models: { "probe-model": { name: "Probe model", limit: { context: 32768, output: 2048 } } },
+    } },
+    model: "harness-test/probe-model", small_model: "harness-test/probe-model",
+    share: "disabled", autoupdate: false, permission: { "*": "deny", bash: "allow", external_directory: "allow" },
+  });
+  Object.assign(env, { KILO_DISABLE_AUTOUPDATE: "1", KILO_DISABLE_MODELS_FETCH: "1",
+    OPENCODE_DISABLE_AUTOUPDATE: "1", OPENCODE_DISABLE_MODELS_FETCH: "1" });
+  command = "kilo";
+  args = ["run", "--format", "json", "--model", "harness-test/probe-model", prompt];
+} else if (harness === "openclaw") {
+  write("/tmp/openclaw.json", {
+    models: { providers: { "harness-test": { baseUrl: "http://gateway:8080/v1", apiKey: "not-a-secret",
+      api: "openai-completions", models: [{ id: "probe-model", name: "Probe model", reasoning: false,
+        input: ["text"], contextWindow: 32768, maxTokens: 2048 }] } } },
+    agents: { defaults: { model: { primary: "harness-test/probe-model" }, workspace: "/work" } },
+  });
+  command = "openclaw";
+  args = ["agent", "exec", "--config", "/tmp/openclaw.json", "--cwd", "/work", "--code-mode", "direct", "--json", prompt];
+} else if (harness === "junie") {
+  Object.assign(env, { JUNIE_SKIP_UPDATE_CHECK: "1", JUNIE_DATA: "/opt/junie" });
+  mkdirSync("/tmp/junie-models", { recursive: true });
+  write("/tmp/junie-models/probe.json", { id: "probe-model", baseUrl: "http://gateway:8080/v1/chat/completions",
+    apiType: "OpenAICompletion", apiKey: "not-a-secret", maxContextLength: 32768 });
+  command = "junie";
+  args = ["--skip-update-check", "--share-anonymous-statistics=false", "--model-location=/tmp/junie-models",
+    "--model=custom:probe", "--output-format=json-stream", "--project=/work", prompt];
+} else if (harness === "hermes-agent") {
+  mkdirSync("/tmp/hermes", { recursive: true });
+  write("/tmp/hermes/config.yaml", {
+    model: { provider: "custom", default: "probe-model", base_url: "http://gateway:8080/v1" },
+    terminal: { backend: "local", timeout: 30 }, compression: { enabled: false },
+    memory: { memory_enabled: false, user_profile_enabled: false },
+    auxiliary: { title_generation: { enabled: false } },
+  });
+  Object.assign(env, { HERMES_HOME: "/tmp/hermes", OPENAI_API_KEY: "not-a-secret",
+    OPENAI_BASE_URL: "http://gateway:8080/v1", HERMES_YOLO_MODE: "true" });
+  command = "hermes";
+  args = ["chat", "--oneshot", "--provider", "custom", "--model", "probe-model",
+    "--toolsets", "terminal", "--format", "stream-json", "-q", prompt];
+} else if (harness === "vtcode") {
+  writeFileSync("/tmp/vtcode.toml", `
+default_primary_agent = "build"
+[agent]
+provider = "harness-test"
+default_model = "probe-model"
+api_key_env = "OPENAI_API_KEY"
+[commands]
+allow_list = ["/usr/local/bin/agent-probe"]
+allow_glob = ["/usr/local/bin/agent-probe *"]
+[agent.harness]
+orchestration_mode = "single"
+[agent.small_model]
+enabled = false
+[automation.full_auto]
+enabled = true
+require_profile_ack = false
+max_turns = 4
+[[custom_providers]]
+name = "harness-test"
+display_name = "Test provider"
+base_url = "http://gateway:8080/v1"
+api_key_env = "OPENAI_API_KEY"
+models = ["probe-model"]
+`);
+  Object.assign(env, { OPENAI_API_KEY: "not-a-secret", VTCODE_TRUST_WORKSPACE: "full-auto" });
+  command = "vtcode";
+  args = ["exec", "--json", "--config", "/tmp/vtcode.toml", "--dangerously-skip-permissions", prompt];
 } else if (harness === "goose") {
   Object.assign(env, { GOOSE_PROVIDER: "openai", GOOSE_MODEL: "probe-model", OPENAI_API_KEY: "not-a-secret",
     OPENAI_HOST: "http://gateway:8080", GOOSE_MODE: "auto", GOOSE_MAX_TURNS: "3", GOOSE_DISABLE_KEYRING: "1" });

@@ -24,6 +24,23 @@ const MARKERS: &[&str] = &[
     "CLAUDECODE",
     "CLAUDE_CODE_CHILD_SESSION",
     "CLAUDE_CODE_SESSION_ID",
+    "DSH_SHELL",
+    "DSH_SESSION_ID",
+    "KILO",
+    "OPENCLAW_SHELL",
+    "HERMES_AGENT",
+    "HERMES_SESSION_ID",
+    "VTCODE",
+    "JUNIE_SHIM_PATH",
+    "MATTERHORN_SESSION_ID",
+];
+// Predicate results only: never serialize arbitrary marker values.
+const EXACT_MARKERS: &[(&str, &str)] = &[
+    ("DSH_SHELL", "1"),
+    ("KILO", "1"),
+    ("OPENCLAW_SHELL", "exec"),
+    ("HERMES_AGENT", "true"),
+    ("VTCODE", "1"),
 ];
 const SESSIONS: &[&str] = &[
     "PI_SESSION_ID",
@@ -32,6 +49,8 @@ const SESSIONS: &[&str] = &[
     "CLINE_TASK_ID",
     "CODEX_THREAD_ID",
     "CLAUDE_CODE_SESSION_ID",
+    "DSH_SESSION_ID",
+    "HERMES_SESSION_ID",
 ];
 
 fn nonblank(name: &str) -> Option<String> {
@@ -62,6 +81,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|name| format!("\"{name}\":{}", nonblank(name).is_some()))
         .collect::<Vec<_>>()
         .join(",");
+    let exact_markers = EXACT_MARKERS
+        .iter()
+        .map(|(name, expected)| {
+            format!(
+                "\"{name}\":{}",
+                env::var(name).ok().as_deref() == Some(*expected)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
     let sessions = SESSIONS
         .iter()
         .map(|name| {
@@ -74,9 +103,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .join(",");
     let record = format!(
         concat!(
-            "{{\"schema\":2,\"nonce\":\"{}\",\"library_version\":\"{}\",",
+            "{{\"schema\":3,\"nonce\":\"{}\",\"library_version\":\"{}\",",
             "\"agent\":{},\"signal\":{},\"session_present\":{},",
-            "\"markers\":{{{}}},\"session_matches\":{{{}}}}}\n"
+            "\"markers\":{{{}}},\"exact_markers\":{{{}}},\"session_matches\":{{{}}}}}\n"
         ),
         args[2],
         env!("CARGO_PKG_VERSION"),
@@ -84,6 +113,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         signal,
         session.is_some(),
         markers,
+        exact_markers,
         sessions,
     );
     // A stale or duplicated invocation cannot silently overwrite evidence.

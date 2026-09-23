@@ -15,10 +15,24 @@ jobs:
     name: Rust and test-runner checks
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+      - name: Read pinned harness matrix
+        id: matrix
+        run: |
+          python3 - <<'PYTHON'
+          import json, os
+          with open('tests/harnesses/harnesses.json') as source:
+              harnesses = json.load(source)
+          matrix = {'include': [{'harness': name, 'expected_gap': bool(spec.get('known_gap'))}
+                                for name, spec in harnesses.items()]}
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('matrix=' + json.dumps(matrix) + '\n')
+          PYTHON
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           components: rustfmt, clippy
@@ -34,18 +48,13 @@ jobs:
         run: python3 -m unittest discover -s tests/harnesses -p 'test_*.py'
 
   harness:
+    needs: checks
     name: ${{ matrix.harness }} / Linux ${{ matrix.expected_gap && '(known detection gap)' || '' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
-      matrix:
-        harness: [pi, qwen-code, opencode, github-copilot, crush, codex, claude-code, gemini-cli]
-        include:
-          - harness: goose
-            expected_gap: true
-          - harness: cline
-            expected_gap: true
+      matrix: ${{ fromJSON(needs.checks.outputs.matrix) }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
