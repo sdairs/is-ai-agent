@@ -49,20 +49,21 @@ def validate_errors(errors):
             releases.exact_version(error["version"])
 
 
-def publish(api, old, new, errors, *, default_branch, tested_sha, run_url):
+def publish(api, old, new, errors, runs, *, default_branch, tested_sha, run_url):
     inventory.validate_document(old)
     inventory.validate_document(new)
     validate_errors(errors)
+    inventory.validate_runs(runs)
     if not re.fullmatch(inventory.URL, run_url) or not re.fullmatch(r"[0-9a-f]{40}", tested_sha):
         raise ValueError("Invalid publication provenance")
     for name in run.HARNESS:
         if name in errors:
-            if new["harnesses"].get(name) != old["harnesses"].get(name):
+            if new.get(name) != old.get(name):
                 raise ValueError("Failed probes must retain previous inventory")
-        elif name not in new["harnesses"]:
-            raise ValueError("Missing harness without a reported failure")
+        elif name not in new or name not in runs:
+            raise ValueError("Missing harness or run without a reported failure")
     changes = inventory.difference(old, new)
-    meaningful = {name: change for name, change in changes.items() if change["kind"] != "version_or_measurement_only"}
+    alerts = {name: result for name, result in runs.items() if result["outcome"] != "unchanged"}
     # Prevent a stale weekly result from proposing updates against newer code.
     base = api.call("git/ref/heads/" + quote(default_branch, safe=""))["object"]["sha"]
     if base != tested_sha:
@@ -94,7 +95,7 @@ def publish(api, old, new, errors, *, default_branch, tested_sha, run_url):
             api.call("git/refs/heads/" + quote(BRANCH, safe=""), "PATCH", {"sha": commit, "force": False})
         else:
             api.call("git/refs", "POST", {"ref": "refs/heads/" + BRANCH, "sha": commit})
-        body = MARKER + "\n\n" + inventory.report_markdown(changes, errors, run_url)
+        body = MARKER + "\n\n" + inventory.report_markdown(changes, errors, run_url, runs)
         body += "\nThis proposal changes only the generated inventory and reference sheet. Merging it records observations; it does not approve any detector rule.\n"
         if prs:
             pr = api.call("pulls/" + str(prs[0]["number"]), "PATCH", {"body": body})
@@ -106,13 +107,13 @@ def publish(api, old, new, errors, *, default_branch, tested_sha, run_url):
         # Latest observations returned to main's inventory while a proposal was
         # pending. Do not leave an obsolete inventory proposal open.
         api.call("pulls/" + str(prs[0]["number"]), "PATCH", {"state": "closed"})
-    if meaningful or errors:
-        digest = hashlib.sha256(json.dumps({"changes": meaningful, "errors": errors}, sort_keys=True).encode()).hexdigest()
+    if changes or alerts or errors:
+        digest = hashlib.sha256(json.dumps({"changes": changes, "errors": errors, "alerts": alerts}, sort_keys=True).encode()).hexdigest()
         marker = "<!-- is-ai-agent:harness-delta:" + digest + " -->"
         issues = api.call("issues?state=all&per_page=100", paginate=True)
         existing = [issue for issue in issues if "pull_request" not in issue
                     and issue["user"]["login"] == "github-actions[bot]" and marker in (issue.get("body") or "")]
-        body = marker + "\n\n" + inventory.report_markdown(meaningful, errors, run_url)
+        body = marker + "\n\n" + inventory.report_markdown(changes, errors, run_url, runs)
         if pr_url:
             body += "\n[Inventory proposal](" + pr_url + ")\n"
         if existing:
@@ -121,7 +122,7 @@ def publish(api, old, new, errors, *, default_branch, tested_sha, run_url):
             # Closed issues are treated as acknowledged; never reopen weekly.
         else:
             api.call("issues", "POST", {"title": "Harness observations changed — review required", "body": body})
-    return {"changes": len(changes), "alerts": len(meaningful) + len(errors), "pull_request": pr_url}
+    return {"changes": len(changes), "alerts": len(set(changes) | set(alerts) | set(errors)), "pull_request": pr_url}
 
 
 def main():
@@ -136,9 +137,9 @@ def main():
         raise ValueError("Publishing is restricted to the default branch")
     old = json.loads((run.ROOT / inventory.DATA).read_text()) if (run.ROOT / inventory.DATA).exists() else inventory.empty()
     new = json.loads((args.artifacts / "observed.json").read_text())
-    errors = json.loads((args.artifacts / "delta.json").read_text())["errors"]
+    delta = json.loads((args.artifacts / "delta.json").read_text())
     run_url = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
-    result = publish(api, old, new, errors, default_branch=default, tested_sha=os.environ["GITHUB_SHA"], run_url=run_url)
+    result = publish(api, old, new, delta["errors"], delta["runs"], default_branch=default, tested_sha=os.environ["GITHUB_SHA"], run_url=run_url)
     print(json.dumps(result))
 
 

@@ -113,7 +113,7 @@ class EvidenceTests(unittest.TestCase):
 
 
 class DiscoveryTests(unittest.TestCase):
-    def test_environment_diff_keeps_names_and_classification_only(self):
+    def test_environment_diff_redacts_unreviewed_values_inside_collector(self):
         script = '''import { compareEnvironment } from "./tests/harnesses/discover.mjs";
 const before = { SAME: "sentinel-secret", CHANGED: "old-secret", REMOVED: "old-secret" };
 const after = { SAME: "sentinel-secret", CHANGED: "new-secret", NEW_SESSION: "private-id",
@@ -122,15 +122,29 @@ console.log(JSON.stringify(compareEnvironment(before, after)));'''
         result = subprocess.run(["node", "--input-type=module", "-e", script], cwd=run.ROOT,
                                 capture_output=True, text=True, check=True)
         self.assertEqual(json.loads(result.stdout), {
-            "SAME": {"change": "unchanged", "nonblank": True},
-            "CHANGED": {"change": "changed", "nonblank": True},
-            "REMOVED": {"change": "removed", "nonblank": False},
-            "NEW_SESSION": {"change": "added", "nonblank": True},
-            "API_KEY": {"change": "added", "nonblank": True},
-            "EMPTY": {"change": "added", "nonblank": False},
+            "SAME": {"change": "unchanged", "nonblank": True, "value": "<redacted>"},
+            "CHANGED": {"change": "changed", "nonblank": True, "value": "<redacted>"},
+            "REMOVED": {"change": "removed", "nonblank": False, "value": None},
+            "NEW_SESSION": {"change": "added", "nonblank": True, "value": "<redacted>"},
+            "API_KEY": {"change": "added", "nonblank": True, "value": "<redacted>"},
+            "EMPTY": {"change": "added", "nonblank": False, "value": "<redacted>"},
         })
         for secret in ["sentinel-secret", "old-secret", "new-secret", "private-id", "sensitive-token"]:
             self.assertNotIn(secret, result.stdout)
+
+    def test_javascript_and_python_share_safe_value_policy(self):
+        cases = [("AGENT", "crush"), ("AI_AGENT", "claude-code_2.1.280_cli"),
+                 ("NEW_FLAG", "1"), ("HERMES_AGENT", "true"), ("OPENCLAW_SHELL", "exec"),
+                 ("EMPTY", ""), ("NODE_VERSION", "24.2.0"), ("API_KEY", "true"),
+                 ("TOKEN", ""), ("AGENT_SESSION_ID", "1"), ("CONFIG", "sentinel-secret"),
+                 ("AGENT", "private-value"), ("PATH", "/private/secret"),
+                 ("AGENT", "crush\n"), ("NODE_VERSION", "24.2.0\n")]
+        script = 'import { safeValue } from "./tests/harnesses/discover.mjs"; console.log(JSON.stringify(' + json.dumps(cases) + '.map(([n,v]) => safeValue(n,v))));'
+        result = subprocess.run(["node", "--input-type=module", "-e", script], cwd=run.ROOT,
+                                capture_output=True, text=True, check=True)
+        expected = ["crush", "claude-code_2.1.280_cli", "1", "true", "exec", "", "24.2.0"] + ["<redacted>"] * 8
+        self.assertEqual(json.loads(result.stdout), expected)
+        self.assertEqual([run.safe_value(*case) for case in cases], expected)
 
     def test_unknown_fields_values_paths_and_stale_discovery_are_rejected(self):
         record = {"schema": 1, "nonce": "fresh", "environment": {

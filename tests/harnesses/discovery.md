@@ -30,9 +30,10 @@ Discovery does not change `detect()` or make a detection gap pass.
    turn. This is a dependency fixture, not an end-to-end test of the skills CLI.
 
 The configured baseline exists only in the container's private `/tmp` filesystem.
-The helper compares values there and exports only portable environment names,
-`added`/`changed`/`removed`/`unchanged`, and nonblank booleans. No values, lengths,
-hashes, session IDs, command arguments, or executable paths leave the container.
+The helper compares values there and exports portable environment names,
+`added`/`changed`/`removed`/`unchanged`, nonblank booleans and reviewed safe values.
+Credentials, session IDs and unreviewed values are replaced with `<redacted>`
+inside the container. No value lengths, hashes or command arguments are exported.
 An optional diagnostic process chain is represented using a fixed list of
 executable names plus `other`/`unavailable`. It is not used by the library.
 Invalid names are omitted; strict artifact schemas reject extra fields or values.
@@ -90,18 +91,19 @@ This does not establish the behavior of Cline's separate VS Code extension.
 Start with the same discovery mode. Review names that appear only in the tool
 environment; reject configuration-only and shared shell variables. Trace a
 promising candidate to the exact released source when available. If its value
-matters, add an explicit safe predicate to the probe rather than dumping it.
+matters, review a narrow addition to the value policy or add a safe probe predicate.
 Add a real negative control for that launch surface, then check another fresh
 run, other supported backends, and session/resume/nesting behavior as relevant.
 Only then add a narrow rule and regression tests. Discovery never automatically
 imports a candidate into the detector.
 
 The [generated inventory](inventory/README.md) provides a versioned reference
-sheet with every observed name and its relation to the configured baseline.
-Weekly reports compare it with new observations and propose inventory-only PRs.
-Generic `AGENT` / `AI_AGENT` classifications are recorded independently of the
-winning signal, so adoption alongside an older marker is visible. Signal changes
-with preserved detection are review items, not automatic upstream bug reports.
+sheet of harnesses, their variable names and sanitized values. Weekly reports
+compare it with new observations and propose inventory-only PRs. Detection results,
+controls and changes from the launch baseline remain in the test reports. Generic
+`AGENT` / `AI_AGENT` identities are observed even when another signal wins, so
+adoption alongside an older marker is visible. Signal changes with preserved
+detection are review items, not automatic upstream bug reports.
 
 Sanitized local Linux ARM64 snapshots: [Goose](evidence/goose-1.51.0-discovery.json)
 and [Cline](evidence/cline-3.0.64-discovery.json). Each records the version, image
@@ -123,8 +125,9 @@ platforms and commands. See the committed sanitized discovery reports in
 | VTCode 0.169.1 | `VTCODE == "1"` | Add exact rule; tested `exec` with supported single orchestration mode |
 | Junie 26.9.7 (3110.7) | `JUNIE_SHIM_PATH`, `MATTERHORN_SESSION_ID` present | Retain as candidates, no default identity/session rule yet |
 
-The probe checks literal predicates inside the container and exports only booleans.
-No arbitrary value or session identifier is retained. Positive results require
+The detection probe checks literal predicates inside the container and exports
+booleans. Discovery additionally records reviewed safe values; arbitrary values
+and session identifiers remain redacted. Positive results require
 clean/configured negative controls and the same fresh output in both the artifact
 and actual tool result. Rust fixtures cover wrong values and precedence; they are
 not presented as real tests of other human/IDE/ACP modes.

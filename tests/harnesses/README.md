@@ -211,9 +211,9 @@ Every delta or execution/resolution failure makes its watcher job fail so it is
 visible in Actions and normal GitHub workflow notifications. Per-harness artifacts retain resolved build
 metadata, both sanitized reports, the structured comparison and Markdown summary
 for 90 days. Investigate a candidate with source and non-agent controls before
-adding an identity rule. Raw values are never exported: an arbitrary value change
-under an existing name may go unnoticed until an explicit boolean predicate is
-added to the probe. A new name is a lead, not proof of an agent-only marker.
+adding an identity rule. Reviewed safe values are exported; other values are
+redacted inside the container. Changes between two redacted values cannot be
+compared across runs. A new name is a lead, not proof of an agent-only marker.
 
 ### Versioned inventory and review issues
 
@@ -223,22 +223,26 @@ only by the inventory/reporting tools: the library, build context, detection
 contracts and pinned test assertions never consume them. Git history preserves
 earlier observations after inventory PRs are merged.
 
-Each entry includes the exact CLI version, platform, shell tool, selected detection
-signal, session/marker predicates, all portable environment names visible in the
-probe (including inherited configuration), and change classifications against the
-configured baseline. It records available non-agent controls and explicitly marks
-the rest untested. `AGENT` and `AI_AGENT` are independently classified even if a
-different signal wins; only canonical library identities are exported. Arbitrary
-values, credentials, paths and actual session IDs remain redacted. Variable names
-must match `[A-Za-z_][A-Za-z0-9_]{0,95}`; invalid/long names are omitted, and more
-than 256 names fails validation rather than silently truncating the inventory.
+The JSON is simply **harness → variable → value**. It includes every portable
+variable present in the command environment, including inherited configuration
+and empty strings. There are no detection summaries, controls, versions or run
+metadata in the inventory; those remain in the CI reports and artifacts.
+
+The collector preserves reviewed safe values such as `AGENT=crush`, `KILO=1`,
+and `HERMES_AGENT=true`. Credentials, session IDs and unreviewed values become
+`<redacted>` **inside the container**, before any output is exported. The shared
+[value policy](value_policy.json) limits which literals and public identity/version
+formats may leave the container; the runner and publisher validate them again.
+Variable names must match `[A-Za-z_][A-Za-z0-9_]{0,95}`; invalid/long names are
+omitted, and more than 256 names fails validation rather than silently truncating.
+Removed variables are absent from the inventory; their removal appears in the delta.
 
 The aggregation job runs even when individual watchers report a delta or fail.
-It compares this week's latest observations with the **checked-in inventory**,
-in addition to the per-harness pinned-versus-latest comparison. A verified command
-with a changed detection contract can update an observation. An installation,
-execution, missing-artifact or invalid-evidence failure retains that harness's
-previous entry and reports it as unavailable, never as a removed marker.
+It compares this week's latest variables and values with the **checked-in inventory**.
+The separate pinned-versus-latest comparison still checks detection and controls.
+A verified command with a changed detection contract can update an observation.
+An installation, execution, missing-artifact or invalid-evidence failure retains
+that harness's previous entry and reports it as unavailable, never as a removed marker.
 
 For scheduled runs, or manual `all` / `latest` runs on the default branch, a
 separate publisher opens or updates an inventory-only PR on
@@ -248,20 +252,18 @@ push, or automatically merge. It rejects a stale default branch or unrelated
 changes on its proposal branch. PR and single-harness/version trials only produce
 downloadable inventory previews; they cannot publish.
 
-Signal changes and unavailable probes also create an investigation issue with the
-before/after delta, exact versions, evidence link and inventory PR. The issue
-classifies preserved detection, changed detection, still-undetected candidates,
-and changed controls. Changes in the library, probe, adapter or platform are
-called out so a measurement change is not automatically blamed on upstream.
-The issue does not assert that an upstream change is a defect. Review whether it
-is a compatible migration, a rule we should add, or a possible regression.
+Variable additions, removals and value changes create an investigation issue with
+the before/after delta, tested versions, evidence link and inventory PR. Detection
+changes and unavailable probes also create issues, even if the inventory is
+unchanged. Reports are observations, not diagnoses of an upstream defect: review
+whether a change is a compatible migration, a rule to add, a collector/policy
+change, or a possible regression.
 
-Identical observations and versions create no PR or issue; a new version with
-identical signals creates an inventory PR without an issue. Timestamps/run URLs
-alone do not cause commits. Matching observation issues are updated rather than
-duplicated, and closed issues are treated as acknowledged rather than reopened.
-An obsolete inventory PR is closed only when a complete run again matches main.
-Full fresh artifacts and the combined report remain available for 90 days.
+A new CLI version alone creates no inventory PR or issue when variables, values
+and test results agree. Matching issues are updated rather than duplicated;
+closed issues are treated as acknowledged rather than reopened. An obsolete
+inventory PR is closed only when a complete run again matches main. Full fresh
+artifacts and the combined report remain available for 90 days.
 
 The publisher is isolated from the probe jobs and receives only the repository's
 GitHub token. It requires contents, issues and pull-request write permissions;
@@ -309,9 +311,10 @@ credentials, or `Debug` output. This matters because the legacy detector can
 still copy `COPILOT_GITHUB_TOKEN` into a signal; removing that rule is separate
 work in [issue #5](https://github.com/sdairs/is-ai-agent/issues/5).
 Discovery additionally exports valid environment variable names, change categories,
-nonblank booleans and allowlisted executable names. Its raw comparison baseline
-stays in the disposable container tmpfs; values, hashes, paths and process
-arguments are never included in artifacts. Discovery is disabled in live mode.
+nonblank booleans, reviewed safe values and allowlisted executable names. Credentials,
+session IDs and unreviewed values are redacted. Its raw comparison baseline stays
+in the disposable container tmpfs; raw environments, hashes and process arguments
+are never included in artifacts. Discovery is disabled in live mode.
 
 Raw CLI transcripts are processed in memory and discarded. Docker runtime logs
 are disabled. Unknown artifact fields and non-boolean marker values are rejected.

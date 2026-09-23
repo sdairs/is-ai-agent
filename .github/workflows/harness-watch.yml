@@ -19,6 +19,9 @@ on:
     paths:
       - .github/workflows/harness-watch.yml
       - tests/harnesses/watch.py
+      - tests/harnesses/run.py
+      - tests/harnesses/discover.mjs
+      - tests/harnesses/value_policy.json
       - tests/harnesses/releases.py
       - tests/harnesses/compare.py
       - tests/harnesses/inventory.py

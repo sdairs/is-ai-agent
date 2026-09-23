@@ -85,7 +85,7 @@ def summary(result):
         lines += ["", f"{name.capitalize()} run: `{report['status']}` at `{report['stage']}`."]
     if result.get("error_type"):
         lines += ["", f"Resolution/evidence error: `{result['error_type']}` (details omitted from artifacts)."]
-    lines += ["", "An execution failure is not evidence that a marker disappeared. Raw environment values are never retained.", ""]
+    lines += ["", "An execution failure is not evidence that a marker disappeared. Credentials, session IDs and unreviewed environment values are redacted.", ""]
     return "\n".join(lines)
 
 
