@@ -10,10 +10,8 @@ Detection provides cooperative attribution from environment variables and a smal
 
 ```toml
 [dependencies]
-is-ai-agent = "0.5"
+is-ai-agent = "0.6"
 ```
-
-The detection refresh documented below is unreleased.
 
 ## Usage
 
