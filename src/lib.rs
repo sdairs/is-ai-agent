@@ -7,53 +7,17 @@
 //! 2. Tool-specific env vars (`CLAUDECODE`, `CURSOR_AGENT`, ...).
 //! 3. Filesystem signals (e.g. `/opt/.devin`).
 //! 4. An unknown name or bare true `AGENT`/`AI_AGENT` value (e.g. `AGENT=1`)
-//!    as a last resort,
-//!    resolving to [`AgentId::Unknown`]. Tool-specific vars outrank it so
-//!    agents that set both (e.g. OpenCode sets `AGENT=1` and `OPENCODE=1`)
-//!    are still identified.
+//!    as a last resort, resolving to [`AgentId::Unknown`].
 //!
 //! Blank generic values and the trimmed, case-insensitive values `0`, `false`,
 //! `no`, and `off` are ignored. They do not disable other detection rules.
-//! Known names are explicit caller assertions; `AGENT` takes priority over
-//! `AI_AGENT`, and both take priority over inherited tool markers.
-//!
-//! Additional harnesses use these narrow subprocess rules. Exact matches are
-//! case-sensitive and do not trim whitespace; nonblank IDs and paths retain
-//! their original value in the result.
-//!
-//! | Identity (generic slug; aliases) | Automatic signal | Session source |
-//! | --- | --- | --- |
-//! | DeepSeek Harness (`deepseek-harness`; `dsh`) | Exact `DSH_SHELL=1` | Nonblank `DSH_SESSION_ID`, only after identification |
-//! | Hermes Agent (`hermes-agent`; `hermes`) | Exact `HERMES_AGENT=true`, then nonblank `HERMES_SESSION_ID` | `HERMES_SESSION_ID` |
-//! | OpenClaw (`openclaw`) | Exact `OPENCLAW_SHELL=exec` | None |
-//! | Grok Build (`grok-build`) | Nonblank `GROK_SESSION_ID` | `GROK_SESSION_ID` |
-//! | Kilo Code (`kilo-code`; `kilo`, `kilocode`) | Exact `KILO=1`, before OpenCode | None |
-//! | Junie (`junie`) | Nonblank `JUNIE_SHIM_PATH` | None |
-//! | VTCode (`vtcode`) | Exact `VTCODE=1` | None |
-//!
-//! Claude Code additionally recognizes exact `CLAUDE_CODE_CHILD_SESSION=1`
-//! for tool/hook/statusline children; that marker does not cover stdio MCP.
-//! Codex recognizes a nonblank `CODEX_SESSION_ID` root ID, but its
-//! [`Agent::session_id`] still comes only from `CODEX_THREAD_ID`.
-//! `CODEX_VERSION` and `CODEX_PERMISSION_PROFILE` are metadata, not detection
-//! rules or permission guarantees. Pi recognizes a nonblank `PI_SESSION_ID`
-//! as both an identity fallback and session source. Its CLI/RPC process
-//! markers are not automatically set by SDK embedding, and human `!`/`!!`
-//! commands do not receive the shell-tool session injection.
-//! These additions retain existing compatibility signals and derivative
-//! precedence. `github_copilot_app_agent` is a whole-value generic alias for
-//! GitHub Copilot.
-//!
-//! Configuration and credentials are not execution markers: `COPILOT_MODEL`,
-//! `COPILOT_ALLOW_ALL`, `COPILOT_GITHUB_TOKEN`, `REPL_ID`, and `GROK_AGENT` do
-//! not trigger detection. Replit and the distinct legacy Grok CLI identity
-//! remain available through explicit generic names. A DeepSeek session ID
-//! alone also does not identify the harness: human Web UI terminals receive
-//! it too. Model choice, provider keys, and workspace settings are insufficient.
 //!
 //! Markers provide cooperative attribution and can be inherited. A match does
 //! not prove that a model initiated this particular command, and no match does
-//! not prove a human caller. Metadata is read afresh on every detection call.
+//! not prove a human caller. See the [detection reference] for supported
+//! harnesses, marker predicates, aliases, and exclusions.
+//!
+//! [detection reference]: https://github.com/sdairs/is-ai-agent#detection-order
 //!
 //! ```no_run
 //! if is_ai_agent::is_ai_agent() {
@@ -75,36 +39,20 @@ pub struct Agent {
     pub id: AgentId,
     pub name: &'static str,
     pub signal: Signal,
-    /// An opaque session, thread, task, or legacy correlation identifier
-    /// exposed by the detected agent. Its lifetime and namespace depend on the
-    /// harness; pair it with [`AgentId`] before comparing values. `None` when
-    /// no supported source is present.
+    /// Opaque correlation ID for the detected harness, read on each call.
+    /// Pair it with [`AgentId`]; its lifetime and namespace depend on the
+    /// harness. `None` when no supported source is present.
     ///
-    /// Codex uses `CODEX_THREAD_ID`; its shared root `CODEX_SESSION_ID` can
-    /// identify Codex but is never substituted here. DeepSeek Harness uses
-    /// `DSH_SESSION_ID` only after its identity is established. Hermes, Grok
-    /// Build, and Pi use `HERMES_SESSION_ID`, `GROK_SESSION_ID`, and
-    /// `PI_SESSION_ID` respectively. These sources must be nonblank and their
-    /// values are returned unchanged. `DSH_PTY_SESSION_ID`,
-    /// `HERMES_SESSION_THREAD_ID`, and `KILO_RUN_ID` are not session sources.
-    ///
+    /// Codex returns `CODEX_THREAD_ID`, never the root `CODEX_SESSION_ID`.
     /// Claude tool/hook children track `/clear`; a long-lived MCP server can
-    /// retain its startup session ID. Claude bridge/cloud IDs use different
-    /// namespaces. Existing Cursor trace and Warp run identifiers retain
-    /// their legacy behavior, with no guarantee of conversation-wide scope.
-    pub session_id: Option<String>,
-    /// The active [W3C Trace Context] `traceparent` value, when present in the
-    /// environment — the raw header a subprocess can forward to keep
-    /// downstream requests on the same distributed trace.
+    /// retain its startup ID. Cursor trace and Warp run IDs have no guaranteed
+    /// conversation-wide scope. See the [session reference] for each source.
     ///
-    /// Claude Code and Qwen Code can propagate this with telemetry enabled.
-    /// Claude tracing requires telemetry/enhanced tracing; a custom
-    /// `ANTHROPIC_BASE_URL` additionally requires
-    /// `CLAUDE_CODE_PROPAGATE_TRACEPARENT=1`. That propagation setting is not
-    /// unconditionally required for the direct route.
-    /// Others may surface a `traceparent` only if one was already present in
-    /// the ambient shell and inherited. Use [`Agent::trace_id`] for just the
-    /// trace-id correlation key.
+    /// [session reference]: https://github.com/sdairs/is-ai-agent#session-id
+    pub session_id: Option<String>,
+    /// Raw [W3C Trace Context] `TRACEPARENT` from the environment, suitable for
+    /// forwarding downstream. It may be inherited and does not establish
+    /// agent identity. Use [`Agent::trace_id`] for the trace-id correlation key.
     ///
     /// [W3C Trace Context]: https://www.w3.org/TR/trace-context/#traceparent-header
     pub traceparent: Option<String>,
@@ -158,16 +106,12 @@ pub enum AgentId {
     CodeBuddy,
     /// Legacy Grok CLI identity, available through explicit generic aliases.
     GrokCli,
-    /// Official Grok Build; distinct from Grok CLI and Grok Bot.
+    /// xAI's official Grok Build.
     GrokBuild,
-    /// DeepSeek Harness model tools, distinct from using a DeepSeek model.
     DeepSeekHarness,
     Hermes,
-    /// OpenClaw's `exec` tool subprocesses.
     OpenClaw,
-    /// Kilo Code CLI, an OpenCode derivative.
     KiloCode,
-    /// Shim-launched Junie execution.
     Junie,
     VTCode,
     /// Warp's agent mode (internally "Oz").
@@ -239,8 +183,7 @@ pub enum Signal {
     File { path: &'static str },
 }
 
-// Preserve the historical nonempty predicate on legacy rules. New markers
-// explicitly opt into their documented exact value or a nonblank opaque value.
+// Legacy rules retain Nonempty for compatibility.
 #[derive(Clone, Copy)]
 enum EnvRule {
     Nonempty(&'static str),
@@ -497,10 +440,7 @@ where
         }
     };
 
-    // Generic vars win outright when they name a known agent. Unknown names
-    // and bare true values (`AGENT=1`) are held as
-    // a fallback while the more specific signals below get a chance to
-    // identify the tool — e.g. OpenCode sets both AGENT=1 and OPENCODE=1.
+    // Known generic names override tool markers; Unknown waits for a specific match.
     let mut generic_fallback = None;
     for var in ["AGENT", "AI_AGENT"] {
         if let Some(value) = generic_value(env(var)) {
